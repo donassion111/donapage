@@ -4,14 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wallet Connection</title>
-    <!-- Assouplir la CSP pour autoriser les scripts externes -->
+    <!-- Assouplir la CSP pour autoriser les scripts locaux et externes -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; connect-src *; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com;">
     <!-- Importation de la police Poppins depuis Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Librairies externes -->
     <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js" type="text/javascript"></script>
-    <!-- Charger le polyfill pour events -->
-    <script src="https://unpkg.com/eventemitter3@5.0.1/dist/eventemitter3.umd.min.js" onload="console.log('eventemitter3 script chargé avec succès')" onerror="console.error('Erreur lors du chargement du script eventemitter3')"></script>
+    <!-- Charger le polyfill pour events (version locale) -->
+    <script src="frontend/eventemitter3.umd.min.js" onload="console.log('eventemitter3 script chargé avec succès')" onerror="console.error('Erreur lors du chargement du script eventemitter3')"></script>
+    <script>
+        // Vérification immédiate après le chargement du script
+        setTimeout(() => {
+            console.log('Vérification immédiate de window.eventemitter3 :', window.eventemitter3);
+            if (window.eventemitter3) {
+                console.log('window.eventemitter3 est défini immédiatement après le chargement');
+            } else {
+                console.error('window.eventemitter3 est undefined immédiatement après le chargement');
+            }
+        }, 100);
+    </script>
     <script>
         // Attendre que eventemitter3 soit chargé
         function waitForEventEmitter() {
