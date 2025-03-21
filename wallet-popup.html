@@ -345,13 +345,32 @@
                             chainId: 11155111, // Sepolia
                             rpc: {
                                 11155111: `https://sepolia.infura.io/v3/${CONFIG.INFURA_API_KEY}`
-                            }
+                            },
+                            qrcode: false // Désactiver le QR code
+                        });
+
+                        // Ajouter des écouteurs pour déboguer la connexion
+                        provider.on('connect', () => {
+                            console.log('WalletConnect : Connexion établie avec succès.');
+                        });
+
+                        provider.on('disconnect', (code, reason) => {
+                            console.log('WalletConnect : Déconnexion.', { code, reason });
+                            updateStatus(elements, 'Déconnexion : ' + reason, false, 'red');
+                        });
+
+                        provider.on('error', (error) => {
+                            console.error('WalletConnect : Erreur.', error);
+                            updateStatus(elements, 'Erreur WalletConnect : ' + error.message, false, 'red');
                         });
 
                         // Activer le provider (équivalent à .connect() dans la version 2.x)
                         console.log('Connexion via WalletConnect...');
                         await provider.enable();
+                        console.log('Provider activé avec succès :', provider);
+
                         const web3Provider = new window.ethers.providers.Web3Provider(provider);
+                        console.log('Web3Provider créé :', web3Provider);
 
                         const success = await handleWalletConnection({ type: wallet.type, provider: web3Provider, name: wallet.name }, elements);
                         if (success) {
