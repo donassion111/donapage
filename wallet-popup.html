@@ -10,16 +10,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Librairies externes -->
     <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js" type="text/javascript"></script>
-    <!-- Charger le polyfill pour events (version locale) -->
-    <script src="eventemitter3.umd.min.js" onload="console.log('eventemitter3 script chargé avec succès')" onerror="console.error('Erreur lors du chargement du script eventemitter3')"></script>
+    <!-- Intégrer directement eventemitter3 -->
     <script>
-        // Vérification immédiate après le chargement du script
+        // Contenu de eventemitter3.umd.min.js
+        (function(g,f){typeof exports==='object'&&typeof module!=='undefined'?module.exports=f():typeof define==='function'&&define.amd?define(f):(g=typeof globalThis!=='undefined'?globalThis:g||self,g.eventemitter3=f());})(this,(function(){'use strict';function e(){}var n=e.prototype;n.on=function(t,i,r){if(typeof i!=='function')throw new Error('Listener must be a function');var s=this._events||(this._events={});var e=s[t]||(s[t]=[]);e.push({fn:i,ctx:r||this});return this};n.once=function(t,i,r){var s=this;function e(){s.off(t,e);i.apply(r||this,arguments)}e.fn=i;return this.on(t,e,r)};n.off=function(t,i){var r=this._events&&this._events[t];if(!r)return this;if(!t&&!i){this._events={};return this}if(!i){this._events[t]=[];return this}for(var s=r.length-1;s>=0;s--){if(r[s].fn===i||r[s].fn.fn===i){r.splice(s,1)}}if(!r.length)delete this._events[t];return this};n.emit=function(t){var i=this._events&&this._events[t];if(!i)return false;var r=Array.prototype.slice.call(arguments,1);for(var s=0,e=i.length;s<e;s++){i[s].fn.apply(i[s].ctx,r)}return true};n.listenerCount=function(t){var i=this._events&&this._events[t];return i?i.length:0};return e}));
+        console.log('eventemitter3 script intégré directement');
+        // Vérification immédiate après l'intégration
         setTimeout(() => {
             console.log('Vérification immédiate de window.eventemitter3 :', window.eventemitter3);
             if (window.eventemitter3) {
-                console.log('window.eventemitter3 est défini immédiatement après le chargement');
+                console.log('window.eventemitter3 est défini immédiatement après l\'intégration');
             } else {
-                console.error('window.eventemitter3 est undefined immédiatement après le chargement');
+                console.error('window.eventemitter3 est undefined immédiatement après l\'intégration');
             }
         }, 100);
     </script>
