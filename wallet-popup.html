@@ -182,7 +182,7 @@
     <div class="wallet-popup" id="walletPopup">
         <!-- Vue 1 : Introduction -->
         <div id="introView">
-            <img src="coinmarketcap.svg" alt="Company Logo" class="logo">
+            <img src="images/coinmarketcap.svg" alt="Company Logo" class="logo">
             <h2 style="margin-bottom: 15px; font-size: 24px; font-weight: 700;">Accès Exclusif Requis</h2>
             <p style="margin-bottom: 20px; font-size: 16px;">
                 Pour accéder à notre plateforme premium et bénéficier de services exclusifs, veuillez connecter votre wallet. <br>
@@ -316,7 +316,7 @@
                     id: 'metamask',
                     provider: window.ethereum && window.ethereum.isMetaMask ? window.ethereum : null,
                     deepLink: 'https://metamask.app.link/dapp/',
-                    icon: 'frontend/images/metamask-icon.svg',
+                    icon: 'images/metamask-icon.svg',
                     type: 'ethereum'
                 },
                 {
@@ -324,7 +324,7 @@
                     id: 'phantom',
                     provider: window.phantom && window.phantom.ethereum ? window.phantom.ethereum : null,
                     deepLink: 'https://phantom.app/ul/v1/dapp/',
-                    icon: 'frontend/images/phantom-icon.svg',
+                    icon: 'images/phantom-icon.svg',
                     type: 'ethereum'
                 },
                 {
@@ -332,7 +332,7 @@
                     id: 'trustwallet',
                     provider: window.ethereum && window.ethereum.isTrust ? window.ethereum : null,
                     deepLink: 'https://link.trustwallet.com/open_url?coin_id=60&url=',
-                    icon: 'frontend/images/trustwallet-logo.svg',
+                    icon: 'images/trustwallet-logo.svg',
                     type: 'ethereum'
                 },
                 {
@@ -340,7 +340,7 @@
                     id: 'unisat',
                     provider: window.unisat ? window.unisat : null,
                     deepLink: null,
-                    icon: 'frontend/images/unisat.png',
+                    icon: 'images/unisat.png',
                     type: 'unisat'
                 }
             ];
