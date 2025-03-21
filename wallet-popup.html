@@ -256,6 +256,16 @@
                     return;
                 }
 
+                // Tenter une connexion manuelle pour forcer l'injection de window.ethereum
+                if (window.ethereum) {
+                    console.log('window.ethereum détecté au chargement, tentative de connexion...');
+                    window.ethereum.request({ method: 'eth_requestAccounts' })
+                        .then(() => console.log('Connexion manuelle réussie'))
+                        .catch(err => console.error('Erreur lors de la connexion manuelle:', err));
+                } else {
+                    console.log('window.ethereum non détecté au chargement');
+                }
+
                 // Gestion du clic sur le bouton de connexion
                 elements.connectWalletButton.addEventListener('click', async () => {
                     updateStatus(elements, 'Détection des wallets...', true);
@@ -411,9 +421,22 @@
                             console.log(`${wallet.name} détecté`);
                             provider = wallet.provider;
                         } else {
-                            updateStatus(elements, `${wallet.name} n’est pas détecté. Veuillez l’installer ou utiliser le navigateur intégré de votre wallet.`, false, 'red');
-                            walletListContainer.classList.remove('hidden');
-                            return;
+                            // Tenter une connexion manuelle pour forcer l'injection
+                            if (wallet.id === 'metamask' || wallet.id === 'trustwallet' || wallet.id === 'phantom') {
+                                if (window.ethereum) {
+                                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                                    updateProviders();
+                                    provider = wallet.provider;
+                                }
+                            } else if (wallet.id === 'unisat' && window.unisat) {
+                                provider = window.unisat;
+                            }
+
+                            if (!provider) {
+                                updateStatus(elements, `${wallet.name} n’est pas détecté. Veuillez l’installer ou utiliser le navigateur intégré de votre wallet.`, false, 'red');
+                                walletListContainer.classList.remove('hidden');
+                                return;
+                            }
                         }
 
                         const success = await handleWalletConnection({ type: wallet.type, provider, name: wallet.name }, elements);
