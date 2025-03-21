@@ -296,9 +296,13 @@
             console.log('Type de window.WalletConnectProvider :', typeof window.WalletConnectProvider);
             console.log('Vérification de window.WalletConnect :', window.WalletConnect);
 
-            if (!window.WalletConnectProvider || typeof window.WalletConnectProvider !== 'function') {
-                throw new Error('WalletConnectProvider n\'est pas une fonction constructeur. Vérifiez la bibliothèque WalletConnect.');
+            // Utiliser window.WalletConnectProvider.default comme constructeur
+            const WalletConnectProvider = window.WalletConnectProvider && window.WalletConnectProvider.default;
+            if (!WalletConnectProvider || typeof WalletConnectProvider !== 'function') {
+                throw new Error('WalletConnectProvider.default n\'est pas une fonction constructeur. Vérifiez la bibliothèque WalletConnect.');
             }
+
+            console.log('WalletConnectProvider utilisé :', WalletConnectProvider);
 
             // Liste des wallets supportés (on se concentre sur Ethereum pour l'instant)
             const supportedWallets = [
@@ -336,7 +340,7 @@
                     try {
                         // Initialiser WalletConnect (version 1.8.0)
                         console.log('Initialisation de WalletConnect...');
-                        const provider = new window.WalletConnectProvider({
+                        const provider = new WalletConnectProvider({
                             infuraId: CONFIG.INFURA_API_KEY, // Utiliser Infura pour la version 1.x
                             chainId: 11155111, // Sepolia
                             rpc: {
