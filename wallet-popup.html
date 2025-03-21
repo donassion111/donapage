@@ -8,7 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Librairies externes -->
     <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js" type="text/javascript"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.14.0/dist/index.min.js"></script>
+    <!-- Utiliser une version différente de WalletConnect -->
+    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.13.0/dist/index.min.js"></script>
     <!-- Ajout d'Eruda pour le débogage sur mobile (temporaire) -->
     <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
     <script>eruda.init();</script>
@@ -261,8 +262,6 @@
                     updateStatus(elements, 'Chargement des wallets...', true);
                     elements.connectWalletButton.disabled = true;
 
-                    let transactionValidated = false;
-
                     try {
                         // Afficher la liste des wallets
                         await showWalletList(elements);
@@ -292,6 +291,11 @@
 
         // Fonction pour afficher la liste des wallets
         async function showWalletList(elements) {
+            console.log('Vérification de window.EthereumProvider :', window.EthereumProvider);
+            if (!window.EthereumProvider) {
+                throw new Error('EthereumProvider n\'est pas défini. Vérifiez que la bibliothèque WalletConnect est correctement chargée.');
+            }
+
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             const walletListContainer = document.getElementById('walletList');
 
