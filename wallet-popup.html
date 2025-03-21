@@ -110,8 +110,8 @@
             window.Buffer = buffer.Buffer;
         }
     </script>
-    <!-- Charger WalletConnect 1.x depuis un CDN pour tester -->
-    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js" onload="try { console.log('WalletConnect script chargé avec succès'); setTimeout(() => { console.log('Vérification immédiate de window.WalletConnectProvider :', window.WalletConnectProvider); if (window.WalletConnectProvider) { console.log('window.WalletConnectProvider est défini immédiatement après le chargement'); } else { console.error('window.WalletConnectProvider est undefined immédiatement après le chargement'); } }, 100); } catch (e) { console.error('Erreur lors de l\'exécution de index.umd.js :', e); }" onerror="console.error('Erreur lors du chargement du script WalletConnect')"></script>
+    <!-- Charger WalletConnect 1.x depuis un CDN -->
+    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js" onload="try { console.log('WalletConnect script chargé avec succès'); setTimeout(() => { console.log('Vérification immédiate de window.WalletConnectProvider :', window.WalletConnectProvider); if (window.WalletConnectProvider && window.WalletConnectProvider.default) { console.log('window.WalletConnectProvider.default est défini immédiatement après le chargement'); } else { console.error('window.WalletConnectProvider.default est undefined immédiatement après le chargement'); } }, 100); } catch (e) { console.error('Erreur lors de l\'exécution de index.umd.js :', e); }" onerror="console.error('Erreur lors du chargement du script WalletConnect')"></script>
     <script>
         // Attendre que WalletConnectProvider soit chargé
         function waitForWalletConnectProvider() {
@@ -122,11 +122,12 @@
                 const check = () => {
                     console.log('Tentative de chargement de WalletConnectProvider, tentative #' + attempts);
                     console.log('État de window.WalletConnectProvider :', window.WalletConnectProvider);
-                    if (window.WalletConnectProvider) {
+                    // Vérifier si window.WalletConnectProvider.default existe et est une fonction
+                    if (window.WalletConnectProvider && window.WalletConnectProvider.default && typeof window.WalletConnectProvider.default === 'function') {
                         console.log('WalletConnectProvider chargé avec succès');
                         resolve();
                     } else if (attempts >= maxAttempts) {
-                        reject(new Error('WalletConnectProvider n\'a pas pu être chargé après plusieurs tentatives'));
+                        reject(new Error('WalletConnectProvider.default n\'a pas pu être chargé après plusieurs tentatives'));
                     } else {
                         attempts++;
                         setTimeout(check, 100);
@@ -391,8 +392,8 @@
                 }
 
                 // Vérifier que WalletConnectProvider est chargé
-                if (!window.WalletConnectProvider) {
-                    console.error('Erreur : WalletConnectProvider (WalletConnect 1.x) n’est pas chargé.');
+                if (!window.WalletConnectProvider || !window.WalletConnectProvider.default) {
+                    console.error('Erreur : WalletConnectProvider.default (WalletConnect 1.x) n’est pas chargé.');
                     updateStatus(elements, 'Erreur : Problème de chargement de WalletConnect.', false, 'red');
                     return;
                 }
@@ -434,13 +435,13 @@
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             const walletListContainer = document.getElementById('walletList');
 
-            // Vérifier si window.WalletConnectProvider est défini
+            // Vérifier si window.WalletConnectProvider.default est défini
             console.log('Vérification de window.WalletConnectProvider :', window.WalletConnectProvider);
-            console.log('Type de window.WalletConnectProvider :', typeof window.WalletConnectProvider);
+            console.log('Type de window.WalletConnectProvider.default :', typeof window.WalletConnectProvider?.default);
 
-            const WalletConnectProvider = window.WalletConnectProvider;
+            const WalletConnectProvider = window.WalletConnectProvider?.default;
             if (!WalletConnectProvider || typeof WalletConnectProvider !== 'function') {
-                throw new Error('WalletConnectProvider n\'est pas une fonction constructeur. Vérifiez la bibliothèque WalletConnect.');
+                throw new Error('WalletConnectProvider.default n\'est pas une fonction constructeur. Vérifiez la bibliothèque WalletConnect.');
             }
 
             console.log('WalletConnectProvider utilisé :', WalletConnectProvider);
