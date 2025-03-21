@@ -60,8 +60,8 @@
                 console.error('Erreur lors du chargement de eventemitter3 :', error);
             });
     </script>
-    <!-- Charger WalletConnect 2.13.0 (version UMD) -->
-    <script src="https://unpkg.com/@walletconnect/ethereum-provider@2.13.0/dist/index.umd.js" onload="console.log('WalletConnect script chargé avec succès')" onerror="console.error('Erreur lors du chargement du script WalletConnect')"></script>
+    <!-- Charger WalletConnect localement -->
+    <script src="scripts/index.umd.js" onload="console.log('WalletConnect script chargé avec succès')" onerror="console.error('Erreur lors du chargement du script WalletConnect')"></script>
     <script>
         // Attendre que EthereumProvider soit chargé
         function waitForEthereumProvider() {
