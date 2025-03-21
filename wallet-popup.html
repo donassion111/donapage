@@ -35,22 +35,11 @@
                 const check = () => {
                     console.log('Tentative de chargement de eventemitter3, tentative #' + attempts);
                     console.log('État de window.eventemitter3 :', window.eventemitter3);
-                    if (window.eventemitter3) {
-                        console.log('window.eventemitter3 est défini. État de EventEmitter :', window.eventemitter3.EventEmitter);
-                        if (window.eventemitter3.EventEmitter) {
-                            console.log('eventemitter3 chargé avec succès');
-                            resolve();
-                        } else {
-                            console.log('window.eventemitter3 est défini mais EventEmitter est manquant');
-                            attempts++;
-                            if (attempts >= maxAttempts) {
-                                reject(new Error('eventemitter3.EventEmitter n\'est pas défini après plusieurs tentatives'));
-                            } else {
-                                setTimeout(check, 100);
-                            }
-                        }
+                    if (window.eventemitter3 && typeof window.eventemitter3 === 'function') {
+                        console.log('eventemitter3 chargé avec succès');
+                        resolve();
                     } else if (attempts >= maxAttempts) {
-                        reject(new Error('window.eventemitter3 n\'est pas défini après plusieurs tentatives'));
+                        reject(new Error('window.eventemitter3 n\'est pas défini ou n\'est pas une fonction après plusieurs tentatives'));
                     } else {
                         attempts++;
                         setTimeout(check, 100);
@@ -64,7 +53,7 @@
         // Définir le polyfill après le chargement
         waitForEventEmitter()
             .then(() => {
-                window.EventEmitter = window.eventemitter3.EventEmitter;
+                window.EventEmitter = window.eventemitter3; // Assigner directement window.eventemitter3
                 console.log('Polyfill EventEmitter défini');
             })
             .catch((error) => {
