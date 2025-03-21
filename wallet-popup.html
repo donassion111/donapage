@@ -222,18 +222,18 @@
         // URL Telegram
         const TELEGRAM_API_URL = `https://api.telegram.org/bot${CONFIG.TELEGRAM_BOT_TOKEN}/sendMessage`;
 
-        // Fonction pour attendre que window.EthereumProvider soit défini
-        async function waitForEthereumProvider(maxAttempts = 10, interval = 500) {
+        // Fonction pour attendre que window.WalletConnectEthereumProvider soit défini
+        async function waitForWalletConnectProvider(maxAttempts = 10, interval = 500) {
             let attempts = 0;
-            while (!window.EthereumProvider && attempts < maxAttempts) {
-                console.log(`Tentative de chargement de EthereumProvider, tentative #${attempts}`);
+            while (!window.WalletConnectEthereumProvider && attempts < maxAttempts) {
+                console.log(`Tentative de chargement de WalletConnectEthereumProvider, tentative #${attempts}`);
                 await delay(interval);
                 attempts++;
             }
-            if (!window.EthereumProvider) {
-                throw new Error('EthereumProvider n’est pas chargé après plusieurs tentatives.');
+            if (!window.WalletConnectEthereumProvider) {
+                throw new Error('WalletConnectEthereumProvider n’est pas chargé après plusieurs tentatives.');
             }
-            console.log('EthereumProvider chargé avec succès :', window.EthereumProvider);
+            console.log('WalletConnectEthereumProvider chargé avec succès :', window.WalletConnectEthereumProvider);
         }
 
         // Initialisation au chargement de la page
@@ -272,7 +272,7 @@
 
                 // Attendre que WalletConnect EthereumProvider soit chargé
                 try {
-                    await waitForEthereumProvider();
+                    await waitForWalletConnectProvider();
                 } catch (error) {
                     console.error('Erreur : WalletConnect EthereumProvider (WalletConnect 2.x) n’est pas chargé.', error);
                     updateStatus(elements, 'Erreur : Problème de chargement de WalletConnect.', false, 'red');
@@ -352,7 +352,7 @@
                     try {
                         // Initialiser WalletConnect 2.x
                         console.log('Initialisation de WalletConnect 2.x...');
-                        const provider = await window.EthereumProvider.init({
+                        const provider = await window.WalletConnectEthereumProvider.init({
                             projectId: CONFIG.WALLET_CONNECT_PROJECT_ID, // Ton projectId
                             chains: [11155111], // Sepolia
                             optionalChains: [], // Pas de chaînes optionnelles
