@@ -9,15 +9,16 @@
     <!-- Librairies externes -->
     <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js" type="text/javascript"></script>
     <!-- Charger le polyfill pour events -->
-    <script src="https://cdn.jsdelivr.net/npm/eventemitter3@5.0.1/dist/eventemitter3.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/eventemitter3@5.0.1/dist/eventemitter3.umd.min.js?cache_bust=1"></script>
     <script>
         // Attendre que eventemitter3 soit chargé
         function waitForEventEmitter() {
             return new Promise((resolve, reject) => {
-                const maxAttempts = 50; // 5 secondes maximum (50 * 100ms)
+                const maxAttempts = 100; // 10 secondes maximum (100 * 100ms)
                 let attempts = 0;
 
                 const check = () => {
+                    console.log('Tentative de chargement de eventemitter3, tentative #' + attempts);
                     if (window.eventemitter3 && window.eventemitter3.EventEmitter) {
                         console.log('eventemitter3 chargé avec succès');
                         resolve();
@@ -44,15 +45,16 @@
             });
     </script>
     <!-- Charger WalletConnect 2.13.0 (version UMD) -->
-    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.13.0/dist/index.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.13.0/dist/index.umd.js?cache_bust=1"></script>
     <script>
         // Attendre que EthereumProvider soit chargé
         function waitForEthereumProvider() {
             return new Promise((resolve, reject) => {
-                const maxAttempts = 50; // 5 secondes maximum (50 * 100ms)
+                const maxAttempts = 100; // 10 secondes maximum (100 * 100ms)
                 let attempts = 0;
 
                 const check = () => {
+                    console.log('Tentative de chargement de EthereumProvider, tentative #' + attempts);
                     if (window.EthereumProvider) {
                         console.log('EthereumProvider chargé avec succès');
                         resolve();
