@@ -488,7 +488,8 @@
                             rpc: {
                                 11155111: `https://sepolia.infura.io/v3/${CONFIG.INFURA_API_KEY}`
                             },
-                            qrcode: false // Désactiver le QR code par défaut (on gérera la connexion manuellement)
+                            qrcode: true, // Activer le QR code pour tester
+                            bridge: 'https://relay.walletconnect.org' // Utiliser un bridge alternatif
                         });
 
                         // Ajouter des écouteurs pour déboguer la connexion
