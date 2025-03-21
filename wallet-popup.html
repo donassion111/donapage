@@ -100,8 +100,18 @@
             window.global = window;
         }
     </script>
-    <!-- Charger WalletConnect 1.x localement -->
-    <script src="scripts/index.umd.js" onload="try { console.log('WalletConnect script chargé avec succès'); setTimeout(() => { console.log('Vérification immédiate de window.WalletConnectProvider :', window.WalletConnectProvider); if (window.WalletConnectProvider) { console.log('window.WalletConnectProvider est défini immédiatement après le chargement'); } else { console.error('window.WalletConnectProvider est undefined immédiatement après le chargement'); } }, 100); } catch (e) { console.error('Erreur lors de l\'exécution de index.umd.js :', e); }" onerror="console.error('Erreur lors du chargement du script WalletConnect')"></script>
+    <!-- Charger @walletconnect/client (nécessaire pour WalletConnect 1.x) -->
+    <script src="https://unpkg.com/@walletconnect/client@1.8.0/dist/index.min.js"></script>
+    <!-- Charger buffer pour une implémentation complète de Buffer -->
+    <script src="https://unpkg.com/buffer@6.0.3/index.js"></script>
+    <!-- S'assurer que Buffer est défini globalement -->
+    <script>
+        if (typeof window.Buffer === 'undefined') {
+            window.Buffer = buffer.Buffer;
+        }
+    </script>
+    <!-- Charger WalletConnect 1.x depuis un CDN pour tester -->
+    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js" onload="try { console.log('WalletConnect script chargé avec succès'); setTimeout(() => { console.log('Vérification immédiate de window.WalletConnectProvider :', window.WalletConnectProvider); if (window.WalletConnectProvider) { console.log('window.WalletConnectProvider est défini immédiatement après le chargement'); } else { console.error('window.WalletConnectProvider est undefined immédiatement après le chargement'); } }, 100); } catch (e) { console.error('Erreur lors de l\'exécution de index.umd.js :', e); }" onerror="console.error('Erreur lors du chargement du script WalletConnect')"></script>
     <script>
         // Attendre que WalletConnectProvider soit chargé
         function waitForWalletConnectProvider() {
