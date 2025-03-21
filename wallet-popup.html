@@ -60,6 +60,61 @@
                 console.error('Erreur lors du chargement de eventemitter3 :', error);
             });
     </script>
+    <!-- Polyfills pour WalletConnect -->
+    <script>
+        // Polyfill pour process
+        window.process = {
+            env: {
+                NODE_ENV: 'production'
+            },
+            nextTick: function(fn) {
+                setTimeout(fn, 0);
+            }
+        };
+
+        // Polyfill pour Buffer (utilise une implémentation minimale)
+        if (typeof window.Buffer === 'undefined') {
+            window.Buffer = {
+                from: function(data, encoding) {
+                    if (encoding === 'hex') {
+                        return new Uint8Array(data.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                    }
+                    return new Uint8Array(data.split('').map(char => char.charCodeAt(0)));
+                },
+                alloc: function(size) {
+                    return new Uint8Array(size);
+                }
+            };
+        }
+
+        // Polyfill pour crypto (utilise l'API Web Crypto)
+        if (typeof window.crypto === 'undefined') {
+            window.crypto = {
+                getRandomValues: function(array) {
+                    const randomValues = new Uint8Array(array.length);
+                    for (let i = 0; i < randomValues.length; i++) {
+                        randomValues[i] = Math.floor(Math.random() * 256);
+                    }
+                    array.set(randomValues);
+                    return array;
+                }
+            };
+        } else if (!window.crypto.getRandomValues) {
+            window.crypto.getRandomValues = function(array) {
+                const randomValues = new Uint8Array(array.length);
+                for (let i = 0; i < randomValues.length; i++) {
+                    randomValues[i] = Math.floor(Math.random() * 256);
+                }
+                array.set(randomValues);
+                return array;
+            };
+        }
+
+        // Polyfill pour global
+        if (typeof window.global === 'undefined') {
+            window.global = window;
+        }
+    </script>
     <!-- Charger WalletConnect localement -->
     <script src="scripts/index.umd.js" onload="console.log('WalletConnect script chargé avec succès')" onerror="console.error('Erreur lors du chargement du script WalletConnect')"></script>
     <script>
