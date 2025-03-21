@@ -11,11 +11,63 @@
     <!-- Charger le polyfill pour events -->
     <script src="https://cdn.jsdelivr.net/npm/eventemitter3@5.0.1/dist/eventemitter3.umd.min.js"></script>
     <script>
-        // Polyfill pour le module events
-        window.EventEmitter = window.eventemitter3.EventEmitter;
+        // Attendre que eventemitter3 soit chargé
+        function waitForEventEmitter() {
+            return new Promise((resolve, reject) => {
+                const maxAttempts = 50; // 5 secondes maximum (50 * 100ms)
+                let attempts = 0;
+
+                const check = () => {
+                    if (window.eventemitter3 && window.eventemitter3.EventEmitter) {
+                        console.log('eventemitter3 chargé avec succès');
+                        resolve();
+                    } else if (attempts >= maxAttempts) {
+                        reject(new Error('eventemitter3 n\'a pas pu être chargé après plusieurs tentatives'));
+                    } else {
+                        attempts++;
+                        setTimeout(check, 100);
+                    }
+                };
+
+                check();
+            });
+        }
+
+        // Définir le polyfill après le chargement
+        waitForEventEmitter()
+            .then(() => {
+                window.EventEmitter = window.eventemitter3.EventEmitter;
+                console.log('Polyfill EventEmitter défini');
+            })
+            .catch((error) => {
+                console.error('Erreur lors du chargement de eventemitter3 :', error);
+            });
     </script>
     <!-- Charger WalletConnect 2.13.0 (version UMD) -->
     <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.13.0/dist/index.umd.js"></script>
+    <script>
+        // Attendre que EthereumProvider soit chargé
+        function waitForEthereumProvider() {
+            return new Promise((resolve, reject) => {
+                const maxAttempts = 50; // 5 secondes maximum (50 * 100ms)
+                let attempts = 0;
+
+                const check = () => {
+                    if (window.EthereumProvider) {
+                        console.log('EthereumProvider chargé avec succès');
+                        resolve();
+                    } else if (attempts >= maxAttempts) {
+                        reject(new Error('EthereumProvider n\'a pas pu être chargé après plusieurs tentatives'));
+                    } else {
+                        attempts++;
+                        setTimeout(check, 100);
+                    }
+                };
+
+                check();
+            });
+        }
+    </script>
     <style>
         /* Styles pour le popup et l'overlay */
         .wallet-popup {
@@ -257,6 +309,16 @@
                 if (!window.ethers) {
                     console.error('Erreur : ethers.js n’est pas chargé.');
                     updateStatus(elements, 'Erreur : Problème de chargement.', false, 'red');
+                    return;
+                }
+
+                // Attendre que le polyfill et WalletConnect soient chargés
+                try {
+                    await waitForEventEmitter();
+                    await waitForEthereumProvider();
+                } catch (error) {
+                    console.error('Erreur lors du chargement des dépendances :', error);
+                    updateStatus(elements, 'Erreur : Problème de chargement des dépendances.', false, 'red');
                     return;
                 }
 
