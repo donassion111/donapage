@@ -115,8 +115,18 @@
             window.global = window;
         }
     </script>
+    <!-- Charger core-js pour polyfiller les fonctionnalités modernes -->
+    <script src="https://unpkg.com/core-js@3.37.1/bundles/core-js.min.js"></script>
+    <!-- Charger buffer pour une implémentation complète de Buffer -->
+    <script src="https://unpkg.com/buffer@6.0.3/index.js"></script>
+    <!-- S'assurer que Buffer est défini globalement -->
+    <script>
+        if (typeof window.Buffer === 'undefined') {
+            window.Buffer = buffer.Buffer;
+        }
+    </script>
     <!-- Charger WalletConnect localement -->
-    <script src="scripts/index.umd.js" onload="console.log('WalletConnect script chargé avec succès')" onerror="console.error('Erreur lors du chargement du script WalletConnect')"></script>
+    <script src="scripts/index.umd.js" onload="try { console.log('WalletConnect script chargé avec succès'); setTimeout(() => { console.log('Vérification immédiate de window.EthereumProvider :', window.EthereumProvider); if (window.EthereumProvider) { console.log('window.EthereumProvider est défini immédiatement après le chargement'); } else { console.error('window.EthereumProvider est undefined immédiatement après le chargement'); } }, 100); } catch (e) { console.error('Erreur lors de l\'exécution de index.umd.js :', e); }" onerror="console.error('Erreur lors du chargement du script WalletConnect')"></script>
     <script>
         // Attendre que EthereumProvider soit chargé
         function waitForEthereumProvider() {
